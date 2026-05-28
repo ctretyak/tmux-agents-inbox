@@ -103,9 +103,12 @@ case "$lines" in ''|*[!0-9]*) lines=30 ;; esac
 body_lines=$(( lines - 4 ))
 [ "$body_lines" -lt 1 ] && body_lines=1
 
-body="$(tmux capture-pane -p -e -t "$pid" -S -200 2>/dev/null | tail -n "$body_lines")"
-if [ -z "$body" ]; then
+# Distinguish "pane gone" (capture-pane fails) from "pane is alive but blank"
+# (capture-pane succeeds with empty output). Only the former should show
+# "(pane closed)"; the latter just renders empty.
+raw_body="$(tmux capture-pane -p -e -t "$pid" -S -200 2>/dev/null)"
+if [ "$?" -ne 0 ]; then
   printf '(pane closed)\n'
 else
-  printf '%s\n' "$body"
+  printf '%s\n' "$raw_body" | tail -n "$body_lines"
 fi
