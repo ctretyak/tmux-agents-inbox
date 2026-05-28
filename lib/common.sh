@@ -13,7 +13,7 @@ C_RESET=$'\033[0m'
 C_WAIT=$'\033[33m'    # yellow — needs input
 C_DONE=$'\033[32m'    # green  — completed
 C_IDLE=$'\033[90m'    # grey   — idle (dimmed)
-C_HDR=$'\033[1;90m'   # bold grey (group headers)
+C_HDR=$'\033[1m'      # bold default-color (group headers); readable on any selected-line bg
 
 # --- live Claude panes -------------------------------------------------------
 # Echo one pane id (%NN) per line for every tmux pane that is currently running
