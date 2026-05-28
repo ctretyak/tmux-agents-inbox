@@ -116,6 +116,22 @@ _title_of() {
   tail -c "$_TITLE_TAIL" "$tp" 2>/dev/null | grep '"type":"ai-title"' | tail -1 | sed -n 's/.*"aiTitle":"\([^"]*\)".*/\1/p'
 }
 
+# Does the latest assistant message end with a question mark? Used to escalate
+# "done" rows to "waiting" — Claude Code doesn't fire a Notification for
+# plain-text questions at end-of-turn, so we infer from the transcript.
+# Requires jq; without jq, returns 1 (no escalation, status stays done).
+_last_assistant_ends_with_question() {
+  local tp="$1" last
+  [ -n "$tp" ] && [ -f "$tp" ] || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  last="$(tail -c "$_TITLE_TAIL" "$tp" 2>/dev/null \
+    | jq -rR 'fromjson? | select(.type=="assistant") | (.message.content | map(select(.type=="text") | .text) | last) | @base64' 2>/dev/null \
+    | tail -1 \
+    | base64 -d 2>/dev/null \
+    | sed 's/[[:space:]]*$//')"
+  case "$last" in *\?) return 0 ;; *) return 1 ;; esac
+}
+
 # Resolve a pane's status from the hook state file AND live transcript activity.
 # Hooks are precise but go stale when a session compacts or predates the install;
 # the transcript is always written by the live session, so its mtime is ground truth
@@ -217,6 +233,11 @@ build_list() {
     cur_tx="$(_cur_transcript "$cwd")"
     tx_mtime="$(_mtime "$cur_tx")"; [ -n "$tx_mtime" ] || tx_mtime=0
     status="$(_status_for "$hstatus" "$hupdated" "$tx_mtime" "$now")"
+    # Escalate "done" to "waiting" when the last assistant message ended with a
+    # question — Claude Code fires no Notification for plain-text questions.
+    if [ "$status" = "done" ] && _last_assistant_ends_with_question "$cur_tx"; then
+      status="waiting"
+    fi
     # "ago" reflects time-in-current-state: prefer the hook epoch (the hook now
     # holds it steady across same-status events). Fall back to transcript mtime
     # only for sessions that have no hook record (predate the install).

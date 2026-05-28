@@ -39,14 +39,10 @@ case "$event" in
     status="waiting"
     [ -n "$ntype" ] && ev="Notification:${ntype}" ;;
   Stop)
-    running=0
-    if command -v jq >/dev/null 2>&1; then
-      running="$(printf '%s' "$payload" | jq -r '[.background_tasks[]? | select(.status=="running")] | length' 2>/dev/null)"
-    else
-      running="$(printf '%s' "$payload" | grep -c '"status"[[:space:]]*:[[:space:]]*"running"' 2>/dev/null)"
-    fi
-    [ -n "$running" ] || running=0
-    if [ "$running" -gt 0 ] 2>/dev/null; then status="working"; else status="done"; fi ;;
+    # Always done — the agent finished its turn. Background_tasks running don't
+    # promote back to working: monitors / passive watchers aren't the agent, and
+    # treating them as "agent still working" makes finished sessions look busy.
+    status="done" ;;
   SessionEnd)
     rm -f "$file" "$file.tmp" 2>/dev/null
     exit 0 ;;
