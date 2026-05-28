@@ -23,6 +23,12 @@ _pct() { case "$1" in *%) echo $(( ${1%\%} * $2 / 100 )) ;; *) echo "$1" ;; esac
 fix_w_opt="$(tmux show -gqv '@agents-inbox-popup-width'  2>/dev/null)"
 fix_h_opt="$(tmux show -gqv '@agents-inbox-popup-height' 2>/dev/null)"
 
+# Preview options. Default off. When on, reserve cells for the preview pane.
+preview_on="$(tmux show -gqv '@agents-inbox-preview' 2>/dev/null)"
+preview_pos="$(tmux show -gqv '@agents-inbox-preview-position' 2>/dev/null)"
+[ -n "$preview_pos" ] || preview_pos='right:55%'
+PREVIEW_CELLS=60   # minimum cells the preview pane wants to look useful
+
 maxh=$(( ch - 2 )); maxw=$(( cw - 2 ))
 
 # Height: fixed override wins over content-fit + min floor.
@@ -46,6 +52,13 @@ else
   min_w="$(_pct "$min_w_opt" "$cw")"
   [ "$min_w" -gt "$maxw" ] && min_w=$maxw
   w=$(( wcols + 8 ))           # pointer/gutter + scrollbar + borders + margin
+  # Preview floor: when preview is on AND positioned on left/right, add PREVIEW_CELLS
+  # so the right pane has space to render. Bottom/top positions consume height, not width.
+  if [ "$preview_on" = "on" ]; then
+    case "$preview_pos" in
+      right:*|left:*) w=$(( w + PREVIEW_CELLS )) ;;
+    esac
+  fi
   [ "$w" -lt "$min_w" ] && w=$min_w
 fi
 
@@ -53,4 +66,26 @@ fi
 [ "$h" -gt "$maxh" ] && h=$maxh
 [ "$w" -gt "$maxw" ] && w=$maxw
 
-tmux display-popup -E -w "$w" -h "$h" "bash '$DIR/scripts/inbox-popup.sh' '$snap'"
+# Narrow-client fallback: if preview is on and side-positioned but the popup
+# couldn't get wide enough to host both list+preview, swap to a bottom layout
+# for this open. Pass through to the popup script via AGENTS_INBOX_PREVIEW_POS.
+effective_pos="$preview_pos"
+if [ "$preview_on" = "on" ]; then
+  case "$preview_pos" in
+    right:*|left:*)
+      list_plus_preview=$(( wcols + 8 + PREVIEW_CELLS ))
+      if [ "$list_plus_preview" -gt "$maxw" ]; then
+        effective_pos='bottom:40%'
+        # Bottom preview wants some extra height too — add ~12 rows if available.
+        new_h=$(( h + 12 ))
+        [ "$new_h" -gt "$maxh" ] && new_h=$maxh
+        h=$new_h
+      fi
+      ;;
+  esac
+fi
+
+tmux display-popup -E -w "$w" -h "$h" \
+  -e "AGENTS_INBOX_PREVIEW=$preview_on" \
+  -e "AGENTS_INBOX_PREVIEW_POS=$effective_pos" \
+  "bash '$DIR/scripts/inbox-popup.sh' '$snap'"
