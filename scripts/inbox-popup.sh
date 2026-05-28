@@ -12,8 +12,9 @@ case "$interval" in ''|*[!0-9.]*) interval=1 ;; esac
 # Common fzf flags as positional params (bash 3.2 safe).
 set -- --ansi --delimiter=$'\t' --with-nth='2..' --no-sort --layout=reverse \
   --prompt='agents> ' \
-  --footer='enter: jump   ctrl-s: regroup   esc: close' \
+  --footer='enter: jump   ctrl-x: kill   ctrl-s: regroup   esc: close' \
   --bind="ctrl-s:execute-silent(bash '$DIR/scripts/_cycle-view.sh')+reload(bash '$DIR/scripts/_build.sh')" \
+  --bind="ctrl-x:execute-silent(bash '$DIR/scripts/inbox-kill.sh' {1})+reload(bash '$DIR/scripts/_build.sh')" \
   --bind="load:reload(bash '$DIR/scripts/_build.sh'; sleep $interval)" \
   --bind='enter:transform:[ {1} = __hdr__ ] && echo ignore || echo accept' \
   --bind='down:down+transform:[ {1} = __hdr__ ] && echo down' \
