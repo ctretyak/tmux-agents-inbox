@@ -223,9 +223,9 @@ build_list() {
     else updated=0
     fi
     case "$status" in
-      done)    rank=0; icon="${C_DONE}✻${C_RESET}"; dcol="" ;;
-      working) rank=1; icon="✽"; dcol="" ;;
-      waiting) rank=2; icon="${C_WAIT}✻${C_RESET}"; dcol="" ;;
+      waiting) rank=0; icon="${C_WAIT}✻${C_RESET}"; dcol="" ;;
+      done)    rank=1; icon="${C_DONE}✻${C_RESET}"; dcol="" ;;
+      working) rank=2; icon="✽"; dcol="" ;;
       *)       rank=3; icon="${C_IDLE}✻${C_RESET}"; dcol="$C_IDLE" ;;
     esac
     desc="$(_title_of "$cur_tx")"
@@ -263,9 +263,9 @@ build_list() {
           if (mode!="flat" && (have==0 || gk[i]!=prev)) {
             lbl=gk[i]
             if (mode=="state") {
-              if      (gk[i]=="0") lbl="Completed"
-              else if (gk[i]=="1") lbl="Working"
-              else if (gk[i]=="2") lbl="Needs input"
+              if      (gk[i]=="0") lbl="Needs input"
+              else if (gk[i]=="1") lbl="Completed"
+              else if (gk[i]=="2") lbl="Working"
               else                 lbl="Idle"
             }
             printf "__hdr__\t%s%s %s (%d) %s%s\n", cw, hr, lbl, cnt[gk[i]], hr, cr
