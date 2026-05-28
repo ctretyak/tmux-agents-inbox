@@ -17,7 +17,7 @@ wcols="$(sed $'s/\x1b\\[[0-9;]*m//g' "$snap" | sed $'s/^[^\t]*\t//' | awk '{ if 
 ch="$(tmux display -p '#{client_height}' 2>/dev/null)"; [ -n "$ch" ] || ch=40
 cw="$(tmux display -p '#{client_width}'  2>/dev/null)"; [ -n "$cw" ] || cw=120
 
-h=$(( rows + 4 ))     # prompt + header + info line + top/bottom border
+h=$(( rows + 5 ))     # top/bottom borders + prompt + info ("N/N") + header line
 w=$(( wcols + 8 ))    # pointer/gutter + scrollbar + borders + a little margin
 maxh=$(( ch - 2 )); maxw=$(( cw - 2 ))
 [ "$h" -gt "$maxh" ] && h=$maxh

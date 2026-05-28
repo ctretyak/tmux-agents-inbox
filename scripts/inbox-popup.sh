@@ -14,7 +14,7 @@ set -- --ansi --delimiter=$'\t' --with-nth='2..' --no-sort --layout=reverse \
   --prompt='agents> ' \
   --header='enter: jump   ctrl-s: regroup   esc: close' \
   --bind="ctrl-s:execute-silent(bash '$DIR/scripts/_cycle-view.sh')+reload(bash '$DIR/scripts/_build.sh')" \
-  --bind="load:reload(sleep $interval; bash '$DIR/scripts/_build.sh')" \
+  --bind="load:reload(bash '$DIR/scripts/_build.sh'; sleep $interval)" \
   --expect=enter
 
 if [ -n "$snap" ] && [ -f "$snap" ]; then
