@@ -7,17 +7,19 @@ to that exact pane (even in another tmux session). One more key jumps to the nex
 opening the popup.
 
 ```
-prefix + I  → popup                                  status-right
-┌──────────────────────────────────────────────┐      ⚡2 ⏳1 ✓3
-│ agents>                                        │   (working/waiting/done)
-│ ── Needs input (1) ──                          │
-│  ✻ power-up design   my-app [feature-x]   1m   │   prefix + N → next waiting
-│ ── Working (1) ──                              │   ctrl-s    → regroup
-│  ✽ collision system  my-app               5s   │   (state · session · flat)
-│ ── Completed (1) ──                            │
-│  ✻ title screen      my-app               9m   │
-└──────────────────────────────────────────────┘
- icon = state (color too) · description · folder [worktree] · session:win.pane · age
+prefix + I  → popup                                            status-right
+┌─────────────────────────────────────────────────────────┐    ⚡2 ⏳1 ✓3
+│ agents>                                                 │    (working/waiting/done)
+│ ── Needs input (1) ──                                   │
+│  ✻ my-app       feature-x      power-up design     1m   │    prefix + N → next waiting
+│ ── Working (1) ──                                       │    ctrl-s    → regroup
+│  ✽ my-app                      collision system    5s   │    (state · session · flat)
+│ ── Completed (1) ──                                     │
+│  ✻ my-app                      title screen        9m   │
+│                                                         │
+│ enter: jump   ctrl-s: regroup   esc: close              │
+└─────────────────────────────────────────────────────────┘
+ columns: status icon · project · subfolder · description · age
 ```
 
 ## How it works
@@ -28,18 +30,25 @@ vanishes while it's still alive, and sessions started *before* the hooks were in
 (Background `claude --bg` sessions, the `claude agents` TUI, and the supervisor are deliberately
 excluded — those are agent view's job; see [Background sessions](#background-sessions).)
 
-**Status** comes from a small Claude Code hook that runs inside each pane and writes a one-line state
-file keyed by the pane id (`~/.cache/tmux-agents-inbox/pane-<id>`). State mapping: `SessionStart` →
-idle, `UserPromptSubmit`/`PreToolUse` → working, `Notification` → waiting, `Stop` → done (stays working
-if a background task is still running), `SessionEnd` → removed. A live pane with no state file yet
-shows as **idle**.
+**Status** is recorded by a small Claude Code hook that runs inside each pane and writes a one-line
+state file keyed by the pane id (`~/.cache/tmux-agents-inbox/pane-<id>`). State mapping:
+`SessionStart` → idle (but `source: compact` keeps it **working** since the session is still active),
+`UserPromptSubmit` / `PreToolUse` → working, `Notification` → waiting (`idle_prompt` reminders are
+ignored so a finished session stays Completed), `Stop` → done (stays working if a `background_tasks`
+entry is still running), `SessionEnd` → removed. A live pane with no state file yet shows as **idle**.
 
-**Description** is the session's `ai-title` (the same auto-generated title Claude shows in `--resume`),
-read from the transcript; it falls back to the tmux window name.
+When a hook record goes stale (after `/compact`, or for sessions that predate the install), the
+popup reconciles with **live transcript activity**: if the session's transcript was written in the
+last ~12 s the row is shown as working; otherwise the most recent transcript mtime drives the **age**
+column.
 
-Everything is computed **on demand** (no daemon): the popup rebuilds ~once a second while open, the
-status line on tmux's `status-interval`. Jumping uses `switch-client` + `select-window` +
-`select-pane` on the pane id.
+**Description** is the session's `ai-title` (the same auto-generated title Claude shows in
+`--resume`), read from the **tail** of the transcript so the cost is constant regardless of session
+length. Falls back to the tmux window name when no title has been generated yet.
+
+Everything is computed **on demand** (no daemon): the popup rebuilds every 2 s while open
+(`@agents-inbox-refresh-interval`), the status line on tmux's `status-interval`. Jumping uses
+`switch-client` + `select-window` + `select-pane` on the pane id.
 
 > **Done vs needs-input is best-effort.** Claude Code's hooks fire `Stop` both when a turn finishes and
 > when the agent asks a plain-text question, and `Notification` covers permission prompts *and* idle
@@ -93,22 +102,32 @@ set -g @agents-inbox-auto-status 'on'
 
 | Option | Default | Meaning |
 |---|---|---|
-| `@agents-inbox-popup-key` | `I` | Key (after prefix) to open the inbox popup |
-| `@agents-inbox-next-key` | `N` | Key (after prefix) to jump to the next waiting agent |
-| `@agents-inbox-popup-width` | `80%` | Popup width |
-| `@agents-inbox-popup-height` | `70%` | Popup height |
-| `@agents-inbox-auto-status` | `off` | If `on`, append the summary to `status-right` |
+| `@agents-inbox-popup-key` | `I` | Key (after prefix) to open the inbox popup. |
+| `@agents-inbox-next-key` | `N` | Key (after prefix) to jump to the next waiting agent. |
+| `@agents-inbox-popup-min-width` | `50%` | Floor for the auto-sized popup width. Accepts `<N>%` (percent of client) or `<N>` (cells). |
+| `@agents-inbox-popup-min-height` | `60%` | Floor for the auto-sized popup height. Same format. |
+| `@agents-inbox-popup-width` | *(unset)* | Optional **fixed** width — if set, replaces auto-fit + min. Same format. |
+| `@agents-inbox-popup-height` | *(unset)* | Optional **fixed** height — if set, replaces auto-fit + min. Same format. |
+| `@agents-inbox-refresh-interval` | `2` | Seconds between auto-rebuilds of the open popup. |
+| `@agents-inbox-auto-status` | `off` | If `on`, append the summary to `status-right` (idempotent; preserves your existing value). |
 
 > **Heads-up for TPM users:** the default popup key `prefix + I` is the same key TPM binds to "install
 > plugins". This plugin will override it. Pick another key if you want to keep TPM's shortcut, e.g.
 > `set -g @agents-inbox-popup-key 'g'`.
 
-In the popup: **Enter** jumps, **Ctrl-S** switches grouping (by state → by session → flat), **Esc**
-closes. Type to fuzzy-filter. The list **auto-refreshes** about once a second.
+In the popup: **Enter** jumps, **Ctrl-S** switches grouping (state → session → flat), **Esc** closes.
+Type to fuzzy-filter. The list **auto-refreshes** every 2 s by default
+(`@agents-inbox-refresh-interval` to change). Group headers (the `── Needs input (N) ──` lines) are
+**non-selectable** — Enter on them is a no-op, and Up/Down skip past them.
 
-Rows are grouped under headers with counts — **Needs input / Working / Completed / Idle** — most-urgent
-first; each row shows a status icon, the session's description, its `session:window.pane`, and how long
-ago it last changed.
+Rows are grouped under headers with counts — **Needs input / Working / Completed / Idle** —
+most-urgent first, newest-first within each group. Each row shows: a colored status icon, project,
+subfolder (the worktree name or path within the repo, blank at the repo root), the session's
+`ai-title` description, and how long ago the session was last active.
+
+The popup is **sized to fit its content**, floored by `@agents-inbox-popup-min-width` /
+`-min-height` (defaults `50%` / `60%` of the client) and capped at `client − 2`. Set
+`@agents-inbox-popup-width` / `-height` for a fixed size that overrides the auto-fit entirely.
 
 ## Background sessions
 
@@ -148,9 +167,11 @@ the correct absolute path automatically, so the script is recommended.
   per server yet.
 - A row drops as soon as its `claude` process exits (membership is process-based), so a crashed or
   quit agent disappears on the next refresh even if it never fired `SessionEnd`. A still-running agent
-  whose last hook was missed may show a stale *status* (e.g. `working`) until the next hook fires.
-- Reading the `ai-title` description greps the session transcript on each refresh — negligible for
-  normal use, but very large transcripts add a little cost.
+  whose hooks have gone silent (e.g. background-only work) reconciles against the transcript: if the
+  transcript hasn't been touched, the row may show as Completed even though work is happening — the
+  transcript is our ground truth and pure background shells don't write to it.
+- Reading the `ai-title` description tails the last ~256 KB of the session transcript on each
+  refresh — constant time regardless of session length.
 
 ## Uninstall
 

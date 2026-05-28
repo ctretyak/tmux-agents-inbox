@@ -11,8 +11,6 @@ get_opt() {
 
 popup_key="$(get_opt '@agents-inbox-popup-key' 'I')"
 next_key="$(get_opt '@agents-inbox-next-key' 'N')"
-popup_w="$(get_opt '@agents-inbox-popup-width' '80%')"
-popup_h="$(get_opt '@agents-inbox-popup-height' '70%')"
 auto_status="$(get_opt '@agents-inbox-auto-status' 'off')"
 
 # prefix + I  -> open the inbox popup (launcher sizes it to fit the content)

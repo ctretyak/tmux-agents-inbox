@@ -123,7 +123,12 @@ _title_of() {
 _status_for() {
   local hs="$1" hu="${2:-0}" tx="${3:-0}" now="$4"
   [ -n "$hu" ] || hu=0; [ -n "$tx" ] || tx=0
-  # Trust the hook state while it's fresh relative to the last transcript activity.
+  # If the hook says working, trust it: the pane is in claude_panes (process alive),
+  # and extended thinking is invisible to BOTH hook events and transcript writes —
+  # falling back to transcript freshness would incorrectly demote a thinking session
+  # to "done". A subsequent Stop event demotes to done.
+  [ "$hs" = "working" ] && { printf 'working'; return; }
+  # Trust other hook states while fresh relative to the last transcript activity.
   if [ -n "$hs" ] && [ "$hu" -ge $(( tx - 60 )) ] 2>/dev/null; then printf '%s' "$hs"; return; fi
   # Hook stale/absent → derive from transcript activity.
   if [ "$tx" -gt 0 ] 2>/dev/null && [ "$(( now - tx ))" -lt 12 ]; then printf 'working'; return; fi

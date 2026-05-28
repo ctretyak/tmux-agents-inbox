@@ -12,10 +12,12 @@ case "$interval" in ''|*[!0-9.]*) interval=2 ;; esac
 # Common fzf flags as positional params (bash 3.2 safe).
 set -- --ansi --delimiter=$'\t' --with-nth='2..' --no-sort --layout=reverse \
   --prompt='agents> ' \
-  --header='enter: jump   ctrl-s: regroup   esc: close' \
+  --footer='enter: jump   ctrl-s: regroup   esc: close' \
   --bind="ctrl-s:execute-silent(bash '$DIR/scripts/_cycle-view.sh')+reload(bash '$DIR/scripts/_build.sh')" \
   --bind="load:reload(bash '$DIR/scripts/_build.sh'; sleep $interval)" \
-  --expect=enter
+  --bind='enter:transform:[ {1} = __hdr__ ] && echo ignore || echo accept' \
+  --bind='down:down+transform:[ {1} = __hdr__ ] && echo down' \
+  --bind='up:up+transform:[ {1} = __hdr__ ] && echo up'
 
 if [ -n "$snap" ] && [ -f "$snap" ]; then
   sel="$(cat "$snap" | fzf "$@" 2>/dev/null)"                          # instant paint from snapshot
@@ -24,9 +26,7 @@ else
 fi
 
 [ -n "$sel" ] || exit 0
-row="$(printf '%s\n' "$sel" | sed -n '2p')"     # line 1 = pressed key, line 2 = selected row
-[ -n "$row" ] || exit 0
-paneid="$(printf '%s' "$row" | cut -f1)"
+paneid="$(printf '%s' "$sel" | cut -f1)"
 case "$paneid" in
-  %[0-9]*) jump_to "$paneid" ;;                 # ignore header rows (__hdr__)
+  %[0-9]*) jump_to "$paneid" ;;
 esac
