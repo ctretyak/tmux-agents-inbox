@@ -108,7 +108,7 @@ set -g @agents-inbox-auto-status 'on'
 | `@agents-inbox-popup-min-height` | `60%` | Floor for the auto-sized popup height. Same format. |
 | `@agents-inbox-popup-width` | *(unset)* | Optional **fixed** width — if set, replaces auto-fit + min. Same format. |
 | `@agents-inbox-popup-height` | *(unset)* | Optional **fixed** height — if set, replaces auto-fit + min. Same format. |
-| `@agents-inbox-refresh-interval` | `2` | Seconds between auto-rebuilds of the open popup. |
+| `@agents-inbox-refresh-interval` | `1` | Seconds between auto-rebuilds of the open popup. |
 | `@agents-inbox-auto-status` | `off` | If `on`, append the summary to `status-right` (idempotent; preserves your existing value). |
 
 > **Heads-up for TPM users:** the default popup key `prefix + I` is the same key TPM binds to "install

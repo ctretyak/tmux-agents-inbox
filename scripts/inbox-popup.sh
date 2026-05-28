@@ -5,9 +5,9 @@ DIR="$(cd "$(dirname "$0")/.." && pwd)"
 . "$DIR/lib/common.sh"
 snap="$1"
 
-# Refresh cadence (seconds between auto-rebuilds); configurable, default 2.
+# Refresh cadence (seconds between auto-rebuilds); configurable, default 1.
 interval="$(tmux show -gqv '@agents-inbox-refresh-interval' 2>/dev/null)"
-case "$interval" in ''|*[!0-9.]*) interval=2 ;; esac
+case "$interval" in ''|*[!0-9.]*) interval=1 ;; esac
 
 # Common fzf flags as positional params (bash 3.2 safe).
 set -- --ansi --delimiter=$'\t' --with-nth='2..' --no-sort --layout=reverse \
