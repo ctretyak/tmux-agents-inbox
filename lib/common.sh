@@ -218,9 +218,9 @@ build_list() {
     # "ago" reflects last real activity: transcript mtime if known, else hook time.
     if [ "$tx_mtime" -gt 0 ] 2>/dev/null; then updated="$tx_mtime"; else updated="$hupdated"; fi
     case "$status" in
-      waiting) rank=0; icon="${C_WAIT}✻${C_RESET}"; dcol="" ;;
+      done)    rank=0; icon="${C_DONE}✻${C_RESET}"; dcol="" ;;
       working) rank=1; icon="✽"; dcol="" ;;
-      done)    rank=2; icon="${C_DONE}✻${C_RESET}"; dcol="" ;;
+      waiting) rank=2; icon="${C_WAIT}✻${C_RESET}"; dcol="" ;;
       *)       rank=3; icon="${C_IDLE}✻${C_RESET}"; dcol="$C_IDLE" ;;
     esac
     desc="$(_title_of "$cur_tx")"
@@ -258,9 +258,9 @@ build_list() {
           if (mode!="flat" && (have==0 || gk[i]!=prev)) {
             lbl=gk[i]
             if (mode=="state") {
-              if      (gk[i]=="0") lbl="Needs input"
+              if      (gk[i]=="0") lbl="Completed"
               else if (gk[i]=="1") lbl="Working"
-              else if (gk[i]=="2") lbl="Completed"
+              else if (gk[i]=="2") lbl="Needs input"
               else                 lbl="Idle"
             }
             printf "__hdr__\t%s%s %s (%d) %s%s\n", cw, hr, lbl, cnt[gk[i]], hr, cr
