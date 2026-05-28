@@ -66,5 +66,15 @@ fi
 
 mkdir -p "$CACHE" 2>/dev/null
 now="$(date +%s)"
+# Keep the previous epoch when the status hasn't changed, so the popup's "ago"
+# column tracks "how long in this state" instead of resetting on every tool use.
+prev_status=""
+prev_epoch=0
+if [ -f "$file" ]; then
+  read -r prev_status prev_epoch _ < "$file" 2>/dev/null
+fi
+if [ "$prev_status" = "$status" ] && [ "${prev_epoch:-0}" -gt 0 ] 2>/dev/null; then
+  now="$prev_epoch"
+fi
 printf '%s %s %s %s\n' "$status" "$now" "$ev" "$tpath" > "$file.tmp" 2>/dev/null && mv -f "$file.tmp" "$file" 2>/dev/null
 exit 0

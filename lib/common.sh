@@ -215,8 +215,13 @@ build_list() {
     cur_tx="$(_cur_transcript "$cwd")"
     tx_mtime="$(_mtime "$cur_tx")"; [ -n "$tx_mtime" ] || tx_mtime=0
     status="$(_status_for "$hstatus" "$hupdated" "$tx_mtime" "$now")"
-    # "ago" reflects last real activity: transcript mtime if known, else hook time.
-    if [ "$tx_mtime" -gt 0 ] 2>/dev/null; then updated="$tx_mtime"; else updated="$hupdated"; fi
+    # "ago" reflects time-in-current-state: prefer the hook epoch (the hook now
+    # holds it steady across same-status events). Fall back to transcript mtime
+    # only for sessions that have no hook record (predate the install).
+    if [ "$hupdated" -gt 0 ] 2>/dev/null; then updated="$hupdated"
+    elif [ "$tx_mtime" -gt 0 ] 2>/dev/null; then updated="$tx_mtime"
+    else updated=0
+    fi
     case "$status" in
       done)    rank=0; icon="${C_DONE}✻${C_RESET}"; dcol="" ;;
       working) rank=1; icon="✽"; dcol="" ;;
