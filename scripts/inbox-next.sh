@@ -12,9 +12,10 @@ for f in "$CACHE"/pane-*; do
   read -r status updated _ < "$f"
   id="${f##*/pane-}"
   case "$status" in
-    waiting) rank=0 ;;
-    done)    rank=1 ;;
-    *)       continue ;;
+    waiting)    rank=0 ;;
+    background) rank=1 ;;
+    done)       rank=2 ;;
+    *)          continue ;;
   esac
   [ -n "$updated" ] || updated=0
   rows="${rows}${rank} $(printf '%010d' "$updated") %${id}

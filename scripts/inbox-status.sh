@@ -5,19 +5,21 @@ DIR="$(cd "$(dirname "$0")/.." && pwd)"
 . "$DIR/lib/common.sh"
 
 prune_dead
-w=0; a=0; d=0
+w=0; a=0; b=0; d=0
 for f in "$CACHE"/pane-*; do
   [ -e "$f" ] || continue
   read -r status _ < "$f"
   case "$status" in
-    working) w=$((w + 1)) ;;
-    waiting) a=$((a + 1)) ;;
-    done)    d=$((d + 1)) ;;
+    working)    w=$((w + 1)) ;;
+    waiting)    a=$((a + 1)) ;;
+    background) b=$((b + 1)) ;;
+    done)       d=$((d + 1)) ;;
   esac
 done
 
 out=""
 [ "$w" -gt 0 ] && out="${out}#[fg=yellow]⚡${w} "
 [ "$a" -gt 0 ] && out="${out}#[fg=magenta]⏳${a} "
+[ "$b" -gt 0 ] && out="${out}#[fg=cyan]✢${b} "
 [ "$d" -gt 0 ] && out="${out}#[fg=green]✓${d} "
 [ -n "$out" ] && printf '%s#[default]' "$out"

@@ -12,6 +12,7 @@ CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agents-inbox"
 C_RESET=$'\033[0m'
 C_WAIT=$'\033[33m'    # yellow — needs input
 C_DONE=$'\033[32m'    # green  — completed
+C_BG=$'\033[36m'      # cyan   — completed-with-background-tasks
 C_IDLE=$'\033[90m'    # grey   — idle (dimmed)
 C_HDR=$'\033[1m'      # bold default-color (group headers); readable on any selected-line bg
 
@@ -116,16 +117,23 @@ _title_of() {
   tail -c "$_TITLE_TAIL" "$tp" 2>/dev/null | grep '"type":"ai-title"' | tail -1 | sed -n 's/.*"aiTitle":"\([^"]*\)".*/\1/p'
 }
 
-# Does the latest assistant message end with a question mark? Used to escalate
-# "done" rows to "waiting" — Claude Code doesn't fire a Notification for
-# plain-text questions at end-of-turn, so we infer from the transcript.
+# Does the latest user/assistant exchange end with the assistant asking a
+# question? Used to escalate "done" rows to "waiting" — Claude Code doesn't
+# fire a Notification for plain-text questions at end-of-turn.
+# Looks at the LAST user-or-assistant record: if user, the question was
+# already responded to (no escalation); if assistant ending with '?', escalate.
 # Requires jq; without jq, returns 1 (no escalation, status stays done).
 _last_assistant_ends_with_question() {
   local tp="$1" last
   [ -n "$tp" ] && [ -f "$tp" ] || return 1
   command -v jq >/dev/null 2>&1 || return 1
   last="$(tail -c "$_TITLE_TAIL" "$tp" 2>/dev/null \
-    | jq -rR 'fromjson? | select(.type=="assistant") | (.message.content | map(select(.type=="text") | .text) | last) | @base64' 2>/dev/null \
+    | jq -rR 'fromjson?
+        | select(.type=="user" or .type=="assistant")
+        | (if .type=="assistant"
+             then ((.message.content | map(select(.type=="text") | .text) | last) // "")
+             else "" end)
+        | @base64' 2>/dev/null \
     | tail -1 \
     | base64 -d 2>/dev/null \
     | sed 's/[[:space:]]*$//')"
@@ -139,21 +147,35 @@ _last_assistant_ends_with_question() {
 _status_for() {
   local hs="$1" hu="${2:-0}" tx="${3:-0}" now="$4"
   [ -n "$hu" ] || hu=0; [ -n "$tx" ] || tx=0
-  # If the hook says working, trust it: the pane is in claude_panes (process alive),
-  # and extended thinking is invisible to BOTH hook events and transcript writes —
-  # falling back to transcript freshness would incorrectly demote a thinking session
-  # to "done". A subsequent Stop event demotes to done.
-  [ "$hs" = "working" ] && { printf 'working'; return; }
-  # If transcript activity is newer than the hook by more than a few seconds AND
-  # happened recently, the session has progressed past the recorded state —
-  # typically the user just submitted a new prompt and UserPromptSubmit hasn't
-  # been recorded yet, while the hook still shows the previous turn's "done".
-  # The "recent" guard keeps background bookkeeping writes (system metadata
-  # records 20+ s after Stop) from spuriously promoting an idle session.
-  [ "$tx" -gt $(( hu + 5 )) ] && [ "$(( now - tx ))" -lt 10 ] 2>/dev/null && { printf 'working'; return; }
-  # Trust other hook states while fresh relative to the last transcript activity.
+  # Trust the hook unconditionally for "endpoint" states where no further hook
+  # events are expected before user action:
+  #  - working: extended thinking is invisible to hooks AND transcript writes;
+  #    transcript-freshness fallback would incorrectly demote a thinking turn.
+  #  - background: post-Stop state with running bg work; no more hooks until
+  #    the next prompt. The transcript-freshness check otherwise rejects this
+  #    when unrelated transcript activity happens in the project dir.
+  case "$hs" in
+    working|background) printf '%s' "$hs"; return ;;
+  esac
+  # waiting is trusted ONLY while the transcript hasn't progressed past the
+  # Notification. Once the user responds and Claude starts producing tokens,
+  # the transcript moves past hu — flip to working so the row doesn't stay
+  # stuck on Needs input through the gap to the next PreToolUse.
+  if [ "$hs" = "waiting" ]; then
+    [ "$tx" -gt $(( hu + 1 )) ] 2>/dev/null && { printf 'working'; return; }
+    printf 'waiting'; return
+  fi
+  # Trust other hook states (done/idle) while fresh relative to the last
+  # transcript activity. Done before the transcript-progress rules below so a
+  # fresh "done" isn't re-promoted to working by post-Stop file activity
+  # (ai-title indexing, telemetry, final flush — anything that touches the
+  # transcript a few seconds after Stop).
   if [ -n "$hs" ] && [ "$hu" -ge $(( tx - 60 )) ] 2>/dev/null; then printf '%s' "$hs"; return; fi
-  # Hook stale/absent → derive from transcript activity.
+  # Hook absent or stale (hu << tx): derive from transcript activity. Covers
+  # pre-install sessions (hu=0) and the rare case where the hook is far older
+  # than recent transcript writes.
+  [ "$tx" -gt $(( hu + 1 )) ] && [ "$(( now - tx ))" -lt 5 ] 2>/dev/null && { printf 'working'; return; }
+  [ "$tx" -gt $(( hu + 5 )) ] && [ "$(( now - tx ))" -lt 10 ] 2>/dev/null && { printf 'working'; return; }
   if [ "$tx" -gt 0 ] 2>/dev/null && [ "$(( now - tx ))" -lt 12 ]; then printf 'working'; return; fi
   if [ "$tx" -gt 0 ] 2>/dev/null; then printf 'done'; return; fi
   printf 'idle'
@@ -233,11 +255,14 @@ build_list() {
     cur_tx="$(_cur_transcript "$cwd")"
     tx_mtime="$(_mtime "$cur_tx")"; [ -n "$tx_mtime" ] || tx_mtime=0
     status="$(_status_for "$hstatus" "$hupdated" "$tx_mtime" "$now")"
-    # Escalate "done" to "waiting" when the last assistant message ended with a
-    # question — Claude Code fires no Notification for plain-text questions.
-    if [ "$status" = "done" ] && _last_assistant_ends_with_question "$cur_tx"; then
-      status="waiting"
-    fi
+    # Escalate "done"/"background" to "waiting" when the last assistant message
+    # ended with a question — Claude Code fires no Notification for plain-text
+    # questions. Skipped if a more recent user record means the question was
+    # already answered.
+    case "$status" in
+      done|background)
+        _last_assistant_ends_with_question "$cur_tx" && status="waiting" ;;
+    esac
     # "ago" reflects time-in-current-state: prefer the hook epoch (the hook now
     # holds it steady across same-status events). Fall back to transcript mtime
     # only for sessions that have no hook record (predate the install).
@@ -246,10 +271,11 @@ build_list() {
     else updated=0
     fi
     case "$status" in
-      waiting) rank=0; icon="${C_WAIT}✻${C_RESET}"; dcol="" ;;
-      done)    rank=1; icon="${C_DONE}✻${C_RESET}"; dcol="" ;;
-      working) rank=2; icon="✽"; dcol="" ;;
-      *)       rank=3; icon="${C_IDLE}✻${C_RESET}"; dcol="$C_IDLE" ;;
+      waiting)    rank=0; icon="${C_WAIT}✻${C_RESET}"; dcol="" ;;
+      done)       rank=1; icon="${C_DONE}✻${C_RESET}"; dcol="" ;;
+      background) rank=2; icon="${C_BG}✢${C_RESET}";   dcol="" ;;
+      working)    rank=3; icon="✽";                    dcol="" ;;
+      *)          rank=4; icon="${C_IDLE}✻${C_RESET}"; dcol="$C_IDLE" ;;
     esac
     desc="$(_title_of "$cur_tx")"
     [ -n "$desc" ] || desc="$wname"
@@ -288,7 +314,8 @@ build_list() {
             if (mode=="state") {
               if      (gk[i]=="0") lbl="Needs input"
               else if (gk[i]=="1") lbl="Completed"
-              else if (gk[i]=="2") lbl="Working"
+              else if (gk[i]=="2") lbl="Background"
+              else if (gk[i]=="3") lbl="Working"
               else                 lbl="Idle"
             }
             printf "__hdr__\t%s%s %s (%d) %s%s\n", cw, hr, lbl, cnt[gk[i]], hr, cr
