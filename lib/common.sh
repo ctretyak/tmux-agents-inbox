@@ -153,7 +153,7 @@ _last_user_prompt() {
         | select(.type=="user")
         | (.message.content
             | if type=="string" then .
-              elif type=="array" then (map(.content // .text // "") | join(" "))
+              elif type=="array" then (map(select(.type=="text") | .text) | join(" "))
               else "" end)
         | @base64' 2>/dev/null \
     | tail -1 \
