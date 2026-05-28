@@ -32,6 +32,7 @@ jq --arg hook "$HOOK" '
   | ensure("SessionStart")
   | ensure("UserPromptSubmit")
   | ensure("PreToolUse")
+  | ensure("PreCompact")
   | ensure("Notification")
   | ensure("Stop")
   | ensure("SessionEnd")

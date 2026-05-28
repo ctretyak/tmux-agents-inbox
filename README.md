@@ -152,6 +152,7 @@ the correct absolute path automatically, so the script is recommended.
     "SessionStart":     [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh SessionStart" } ] } ],
     "UserPromptSubmit": [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh UserPromptSubmit" } ] } ],
     "PreToolUse":       [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh PreToolUse" } ] } ],
+    "PreCompact":       [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh PreCompact" } ] } ],
     "Notification":     [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh Notification" } ] } ],
     "Stop":             [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh Stop" } ] } ],
     "SessionEnd":       [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh SessionEnd" } ] } ]
