@@ -128,11 +128,13 @@ _status_for() {
   # falling back to transcript freshness would incorrectly demote a thinking session
   # to "done". A subsequent Stop event demotes to done.
   [ "$hs" = "working" ] && { printf 'working'; return; }
-  # If transcript activity is newer than the hook by more than a few seconds, the
-  # session has progressed past the recorded state — typically the user just
-  # submitted a new prompt and UserPromptSubmit hasn't been recorded yet, while
-  # the hook still shows the previous turn's "done". Treat as working.
-  [ "$tx" -gt $(( hu + 5 )) ] 2>/dev/null && { printf 'working'; return; }
+  # If transcript activity is newer than the hook by more than a few seconds AND
+  # happened recently, the session has progressed past the recorded state —
+  # typically the user just submitted a new prompt and UserPromptSubmit hasn't
+  # been recorded yet, while the hook still shows the previous turn's "done".
+  # The "recent" guard keeps background bookkeeping writes (system metadata
+  # records 20+ s after Stop) from spuriously promoting an idle session.
+  [ "$tx" -gt $(( hu + 5 )) ] && [ "$(( now - tx ))" -lt 10 ] 2>/dev/null && { printf 'working'; return; }
   # Trust other hook states while fresh relative to the last transcript activity.
   if [ -n "$hs" ] && [ "$hu" -ge $(( tx - 60 )) ] 2>/dev/null; then printf '%s' "$hs"; return; fi
   # Hook stale/absent → derive from transcript activity.
