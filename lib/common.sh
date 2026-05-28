@@ -140,6 +140,34 @@ _last_assistant_ends_with_question() {
   case "$last" in *\?) return 0 ;; *) return 1 ;; esac
 }
 
+# Last user prompt as a single line, truncated to ~60 chars + ellipsis.
+# Used by the preview header. Requires jq; without jq, prints nothing.
+# Mirrors _last_assistant_ends_with_question: tail-only read, base64
+# encoding to survive newlines and quotes inside content.
+_last_user_prompt() {
+  local tp="$1" raw
+  [ -n "$tp" ] && [ -f "$tp" ] || return 0
+  command -v jq >/dev/null 2>&1 || return 0
+  raw="$(tail -c "$_TITLE_TAIL" "$tp" 2>/dev/null \
+    | jq -rR 'fromjson?
+        | select(.type=="user")
+        | (.message.content
+            | if type=="string" then .
+              elif type=="array" then (map(.content // .text // "") | join(" "))
+              else "" end)
+        | @base64' 2>/dev/null \
+    | tail -1 \
+    | base64 -d 2>/dev/null \
+    | tr '\n\t' '  ' \
+    | sed 's/  */ /g; s/^ //; s/ $//')"
+  [ -n "$raw" ] || return 0
+  if [ "${#raw}" -gt 60 ]; then
+    printf '%s…' "${raw:0:60}"
+  else
+    printf '%s' "$raw"
+  fi
+}
+
 # Resolve a pane's status from the hook state file AND live transcript activity.
 # Hooks are precise but go stale when a session compacts or predates the install;
 # the transcript is always written by the live session, so its mtime is ground truth
