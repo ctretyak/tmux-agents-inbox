@@ -106,7 +106,7 @@ body_lines=$(( lines - 4 ))
 # Distinguish "pane gone" (capture-pane fails) from "pane is alive but blank"
 # (capture-pane succeeds with empty output). Only the former should show
 # "(pane closed)"; the latter just renders empty.
-raw_body="$(tmux capture-pane -p -e -t "$pid" -S -200 2>/dev/null)"
+raw_body="$(tmux capture-pane -p -e -t "$pid" -S -2000 2>/dev/null)"
 if [ "$?" -ne 0 ]; then
   printf '(pane closed)\n'
 else
@@ -117,6 +117,9 @@ else
   # the typical single-line-input chrome cleanly; taller input loses content
   # rather than leaking chrome, which is the right trade-off for a preview.
   # If no ⏵ is found (plain shell pane), keep the capture as-is.
+  # After cutting chrome, trim trailing blank lines so `tail -n body_lines`
+  # doesn't waste the preview area on whitespace that sat between content and
+  # the chrome.
   printf '%s\n' "$raw_body" \
     | awk '
         { lines[NR] = $0 }
@@ -124,6 +127,7 @@ else
         END {
           last = (hint > 0 ? hint - 5 : NR)
           if (last < 1) last = 0
+          while (last > 0 && lines[last] ~ /^[[:space:]]*$/) last--
           for (i = 1; i <= last; i++) print lines[i]
         }
       ' \
