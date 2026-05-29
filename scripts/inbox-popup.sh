@@ -28,7 +28,7 @@ set -- --ansi --delimiter=$'\t' --with-nth='2..' --no-sort --layout=reverse \
   --footer='enter: jump   ctrl-x: kill   ?: preview   ctrl-s: regroup   esc: close' \
   --preview="bash '$DIR/scripts/inbox-preview.sh' {1}" \
   --preview-window="$init_pos" \
-  --bind="?:transform:bash '$DIR/scripts/_toggle-preview.sh' '$preview_pos'" \
+  --bind="?:execute-silent(bash '$DIR/scripts/_toggle-preview.sh')+become(true)" \
   --bind="ctrl-s:execute-silent(bash '$DIR/scripts/_cycle-view.sh')+reload(bash '$DIR/scripts/_build.sh')" \
   --bind="ctrl-x:execute-silent(bash '$DIR/scripts/inbox-kill.sh' {1})+reload(bash '$DIR/scripts/_build.sh')" \
   --bind="load:reload(bash '$DIR/scripts/_build.sh'; sleep $interval)+refresh-preview" \

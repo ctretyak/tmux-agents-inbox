@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# _toggle-preview.sh <preview-position>
-# Flip the @agents-inbox-preview tmux option and emit the fzf action that
-# updates the preview window to match. Called from inbox-popup.sh's `?` bind
-# via fzf's `transform:` action — the stdout becomes the next fzf binding to
-# execute.
+# _toggle-preview.sh
+# Flip the @agents-inbox-preview tmux option AND set a marker so the outer
+# loop in inbox-open.sh reopens the popup at the new size. Called from the
+# popup's `?` bind via `execute-silent`. Has no stdout — the bind chain
+# follows with `+become(true)` to actually close fzf.
 #
-# Persisting to the tmux option (not a state file) means the next popup-open
-# inherits the user's last choice for BOTH the popup state AND the opener's
-# width sizing — single source of truth.
-
-pos="$1"
-[ -n "$pos" ] || pos='right:55%'
+# Persisting to the tmux option means the next popup-open inherits the user's
+# last choice for BOTH the popup state AND the opener's width sizing — single
+# source of truth.
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+. "$DIR/lib/common.sh"
+mkdir -p "$CACHE" 2>/dev/null
 
 cur="$(tmux show -gqv '@agents-inbox-preview' 2>/dev/null)"
 case "$cur" in
-  on) next="off"; window="hidden" ;;
-  *)  next="on";  window="$pos" ;;
+  on) next="off" ;;
+  *)  next="on"  ;;
 esac
 tmux set -g '@agents-inbox-preview' "$next" 2>/dev/null
-printf 'change-preview-window:%s' "$window"
+touch "$CACHE/.popup-reopen" 2>/dev/null
