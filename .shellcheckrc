@@ -1,0 +1,8 @@
+# shellcheck has no bash-3.2 dialect; -s bash assumes modern bash. Running it is
+# still the safety net that flags accidental bash-4+ features (assoc arrays,
+# namerefs) that would break macOS /bin/bash 3.2.
+shell=bash
+# SC2155: declare+assign on one line — pervasive, intentional style here.
+disable=SC2155
+# SC1091: shellcheck can't follow sourced lib/common.sh from every entry point.
+disable=SC1091
