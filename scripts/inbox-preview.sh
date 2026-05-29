@@ -110,5 +110,22 @@ raw_body="$(tmux capture-pane -p -e -t "$pid" -S -200 2>/dev/null)"
 if [ "$?" -ne 0 ]; then
   printf '(pane closed)\n'
 else
-  printf '%s\n' "$raw_body" | tail -n "$body_lines"
+  # Strip Claude Code TUI chrome. Anchor on the auto-mode hint line (the
+  # distinctive ⏵⏵ chevrons appear nowhere else in normal output). The chrome
+  # sandwich above the hint is: input-box top border, input area (1-N lines),
+  # input-box bottom border, status line. Cutting 5 lines above the hint drops
+  # the typical single-line-input chrome cleanly; taller input loses content
+  # rather than leaking chrome, which is the right trade-off for a preview.
+  # If no ⏵ is found (plain shell pane), keep the capture as-is.
+  printf '%s\n' "$raw_body" \
+    | awk '
+        { lines[NR] = $0 }
+        /⏵/ { hint = NR }
+        END {
+          last = (hint > 0 ? hint - 5 : NR)
+          if (last < 1) last = 0
+          for (i = 1; i <= last; i++) print lines[i]
+        }
+      ' \
+    | tail -n "$body_lines"
 fi
