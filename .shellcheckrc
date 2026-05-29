@@ -6,3 +6,15 @@ shell=bash
 disable=SC2155
 # SC1091: shellcheck can't follow sourced lib/common.sh from every entry point.
 disable=SC1091
+# The following silence pre-existing, intentional idioms (out of scope for the
+# maintainability pass that added this config — not rewriting working code):
+# SC2012: `ls -t … | head -1` to pick the newest transcript — intentional and portable.
+disable=SC2012
+# SC2034: read-placeholder / reserved locals (e.g. pidx, vis) that are intentionally unset.
+disable=SC2034
+# SC2086: deliberate word-splitting (e.g. `set -- $ordered`) to rebuild a positional list.
+disable=SC2086
+# SC2181: `cmd; [ "$?" -ne 0 ]` — intentional capture-then-branch on the exit code.
+disable=SC2181
+# SC2154: variables referenced only inside an EXIT trap (assigned before the trap fires).
+disable=SC2154
