@@ -63,20 +63,29 @@ claude_panes() {
     }' | sort -u
 }
 
+# Remove $CACHE/pane-* state files whose id is absent from the live set.
+# $1 = live pane ids, one per line, WITHOUT the leading '%'. Matching is exact-line
+# anchored (grep -qx) so id "1" never matches inside "10".
+_prune_state() {
+  local live="$1" f fid
+  [ -d "$CACHE" ] || return 0
+  for f in "$CACHE"/pane-*; do
+    [ -e "$f" ] || continue
+    fid="${f##*/pane-}"
+    printf '%s\n' "$live" | grep -qx "$fid" || rm -f "$f"
+  done
+}
+
 # Remove state files for panes that are no longer running claude (keeps counts
 # honest). Guard: only prune when tmux is reachable, so a transient failure
 # doesn't nuke valid state.
 prune_dead() {
   [ -d "$CACHE" ] || return 0
-  local anypane pruneset f fid
+  local anypane live
   anypane="$(tmux list-panes -a -F x 2>/dev/null)"
   [ -n "$anypane" ] || return 0
-  pruneset=" $(claude_panes | tr -d '%' | tr '\n' ' ') "
-  for f in "$CACHE"/pane-*; do
-    [ -e "$f" ] || continue
-    fid="${f##*/pane-}"
-    case "$pruneset" in *" $fid "*) : ;; *) rm -f "$f" ;; esac
-  done
+  live="$(claude_panes | tr -d '%')"
+  _prune_state "$live"
 }
 
 # Relative "ago" string from an epoch.
@@ -272,7 +281,7 @@ _status_presentation() {
 # Group-header rows use the sentinel pane id "__hdr__" (jump is a no-op on them).
 # View mode is read from $CACHE/.view-mode: state (default) | session | flat.
 build_list() {
-  local mode now live meta liveset pruneset f fid
+  local mode now live meta liveset
   local id sf hstatus hupdated cur_tx tx_mtime status updated rank icon desc vis gkey wkey
 
   mode="$(cat "$CACHE/.view-mode" 2>/dev/null)"
@@ -284,12 +293,7 @@ build_list() {
 
   # prune state files for panes not running claude (only when tmux is alive)
   if [ -n "$meta" ]; then
-    pruneset=" $(printf '%s' "$live" | tr -d '%' | tr '\n' ' ') "
-    for f in "$CACHE"/pane-*; do
-      [ -e "$f" ] || continue
-      fid="${f##*/pane-}"
-      case "$pruneset" in *" $fid "*) : ;; *) rm -f "$f" ;; esac
-    done
+    _prune_state "$(printf '%s' "$live" | tr -d '%')"
   fi
 
   liveset=" $(printf '%s' "$live" | tr '\n' ' ') "
