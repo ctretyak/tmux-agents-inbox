@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Fake tmux: dispatch on the -F format requested by the code under test.
+case "$*" in
+  *'#{pane_pid} #{pane_id}'*)              cat "$TAI_FIX/panes_pidmap" ;;
+  *'#{pane_id}|#{session_name}'*)          cat "$TAI_FIX/panes_meta" ;;
+  *'list-panes -a -F x'*)                  printf 'x\n' ;;
+  *) exit 0 ;;
+esac

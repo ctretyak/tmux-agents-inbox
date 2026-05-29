@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Fake ps: only the -eo pid=,ppid=,args= snapshot is used.
+cat "$TAI_FIX/ps_snap"
