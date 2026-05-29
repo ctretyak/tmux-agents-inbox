@@ -1,0 +1,3 @@
+{"type":"ai-title","aiTitle":"good title"}
+{"type":"user","message":{"content":"a real prompt here"}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"partial line not closed
