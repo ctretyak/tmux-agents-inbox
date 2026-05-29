@@ -1,0 +1,32 @@
+name: ci
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - run: bash tests/lint.sh
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        jq: [ "with-jq", "without-jq" ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure jq present (with-jq leg)
+        if: matrix.jq == 'with-jq'
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Mask jq (without-jq leg)
+        if: matrix.jq == 'without-jq'
+        run: |
+          # Remove jq and clear bash's command hash so the fallback paths run.
+          sudo rm -f "$(command -v jq)" || true
+          hash -r
+          ! command -v jq >/dev/null 2>&1 && echo "jq masked OK"
+      - run: bash tests/run.sh
