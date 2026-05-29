@@ -247,13 +247,33 @@ _proj_sub() {
   printf '%s\t%s' "$proj" "$sub"
 }
 
+# Map a status to its presentation fields as ONE tab-delimited line:
+#   rank<TAB>icon<TAB>label<TAB>dim   (dim=1 only for idle rows).
+# Consume with: IFS=$'\t' read -r rank icon label dim <<< "$(_status_presentation "$s")"
+# Echo (not _RET_* globals): build_list's per-pane loop runs in a pipeline subshell,
+# where a global-var return is a footgun; command-substitution matches this file's
+# existing idiom and IFS=$'\t' read keeps labels-with-spaces intact.
+# Canonical rank order (lower = more urgent): waiting<done<background<working<idle.
+# Every branch assigns all four fields; the default covers unknown == idle.
+_status_presentation() {
+  local rank icon label dim
+  case "$1" in
+    waiting)    rank=0; icon="${C_WAIT}✻${C_RESET}"; label="Needs input"; dim=0 ;;
+    done)       rank=1; icon="${C_DONE}✻${C_RESET}"; label="Completed";   dim=0 ;;
+    background) rank=2; icon="${C_BG}✢${C_RESET}";   label="Background";  dim=0 ;;
+    working)    rank=3; icon="✽";                    label="Working";     dim=0 ;;
+    *)          rank=4; icon="${C_IDLE}✻${C_RESET}"; label="Idle";        dim=1 ;;
+  esac
+  printf '%s\t%s\t%s\t%s' "$rank" "$icon" "$label" "$dim"
+}
+
 # Build the inbox rows for fzf.
 # Output line: "<pane_id>\t<visible columns>"  (field 1 = hidden jump key).
 # Group-header rows use the sentinel pane id "__hdr__" (jump is a no-op on them).
 # View mode is read from $CACHE/.view-mode: state (default) | session | flat.
 build_list() {
   local mode now live meta liveset pruneset f fid
-  local id sf hstatus hupdated cur_tx tx_mtime status updated rank icon dcol desc vis gkey wkey
+  local id sf hstatus hupdated cur_tx tx_mtime status updated rank icon desc vis gkey wkey
 
   mode="$(cat "$CACHE/.view-mode" 2>/dev/null)"
   case "$mode" in state|session|flat) : ;; *) mode="state" ;; esac
@@ -298,13 +318,7 @@ build_list() {
     elif [ "$tx_mtime" -gt 0 ] 2>/dev/null; then updated="$tx_mtime"
     else updated=0
     fi
-    case "$status" in
-      waiting)    rank=0; icon="${C_WAIT}✻${C_RESET}"; dcol="" ;;
-      done)       rank=1; icon="${C_DONE}✻${C_RESET}"; dcol="" ;;
-      background) rank=2; icon="${C_BG}✢${C_RESET}";   dcol="" ;;
-      working)    rank=3; icon="✽";                    dcol="" ;;
-      *)          rank=4; icon="${C_IDLE}✻${C_RESET}"; dcol="$C_IDLE" ;;
-    esac
+    IFS=$'\t' read -r rank icon _lbl dim <<< "$(_status_presentation "$status")"
     desc="$(_title_of "$cur_tx")"
     [ -n "$desc" ] || desc="$wname"
     desc="${desc//$'\t'/ }"
@@ -312,7 +326,6 @@ build_list() {
     proj="${projsub%%$'\t'*}"
     sub="${projsub#*$'\t'}"
     if [ "$updated" -gt 0 ] 2>/dev/null; then agostr="$(_ago "$updated")"; else agostr=" -"; fi
-    if [ -n "$dcol" ]; then dim=1; else dim=0; fi
     # inv = newest-first within a group (ascending sort of a descending key)
     inv=$(( 9999999999 - ${updated:-0} ))
     case "$mode" in

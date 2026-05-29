@@ -21,3 +21,12 @@ assert_eq working "$(_status_for '' 0 992 "$NOW")" "status: tx age 8s -> working
 assert_eq working "$(_status_for '' 0 989 "$NOW")" "status: tx age 11s -> working (<12s)"
 assert_eq done    "$(_status_for '' 0 980 "$NOW")" "status: tx age 20s -> done"
 assert_eq idle    "$(_status_for '' 0 0   "$NOW")" "status: no hook, no transcript -> idle"
+
+# --- _status_presentation: tab-delimited "rank<TAB>icon<TAB>label<TAB>dim" ---
+sp() { IFS=$'\t' read -r r i l d <<< "$(_status_presentation "$1")"; printf '%s|%s|%s' "$r" "$l" "$d"; }
+assert_eq "0|Needs input|0" "$(sp waiting)"    "_status_presentation: waiting"
+assert_eq "1|Completed|0"   "$(sp done)"       "_status_presentation: done"
+assert_eq "2|Background|0"  "$(sp background)" "_status_presentation: background"
+assert_eq "3|Working|0"     "$(sp working)"    "_status_presentation: working"
+assert_eq "4|Idle|1"        "$(sp idle)"       "_status_presentation: idle"
+assert_eq "4|Idle|1"        "$(sp bogus)"      "_status_presentation: unknown -> idle defaults"

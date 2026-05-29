@@ -57,13 +57,7 @@ case "$status" in
     _last_assistant_ends_with_question "$cur_tx" && status="waiting" ;;
 esac
 
-case "$status" in
-  waiting)    icon="${C_WAIT}✻${C_RESET}";  label="Needs input" ;;
-  done)       icon="${C_DONE}✻${C_RESET}";  label="Completed" ;;
-  background) icon="${C_BG}✢${C_RESET}";    label="Background" ;;
-  working)    icon="✽";                     label="Working" ;;
-  *)          icon="${C_IDLE}✻${C_RESET}";  label="Idle" ;;
-esac
+IFS=$'\t' read -r _rank icon label _dim <<< "$(_status_presentation "$status")"
 
 # "ago": prefer hook epoch (state-stable), else transcript mtime.
 if [ "$hupdated" -gt 0 ] 2>/dev/null; then
