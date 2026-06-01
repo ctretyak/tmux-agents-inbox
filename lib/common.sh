@@ -4,6 +4,10 @@
 
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/tmux-agents-inbox"
 
+# Resolved plugin root (this file is <root>/lib/common.sh). Used to match THIS
+# plugin's hook path in settings; overridable for tests via the env var.
+AGENTS_INBOX_DIR="${AGENTS_INBOX_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+
 # ANSI colors (rendered by `fzf --ansi`).
 # Match `claude agents`: needs input = yellow, completed = green, idle = dimmed.
 # Working is neutral (agent view shows an animated spinner, not a colored icon).
@@ -274,6 +278,19 @@ _status_presentation() {
     *)          rank=4; icon="${C_IDLE}✻${C_RESET}"; label="Idle";        dim=1 ;;
   esac
   printf '%s\t%s\t%s\t%s' "$rank" "$icon" "$label" "$dim"
+}
+
+# True when THIS plugin's hook is wired into the user's Claude Code settings.
+# A heuristic, not proof: greps the user settings file (CLAUDE_SETTINGS or
+# ~/.claude/settings.json) for the plugin's RESOLVED absolute hook path. Matching
+# the full path (not the bare basename) means a stale/relocated install reads as
+# NOT detected. Deliberately user-scope + grep-only (no jq) — see the design doc's
+# accepted blind spots (project-scope / partial / wrapper installs).
+_hooks_detected() {
+  local settings
+  settings="${CLAUDE_SETTINGS:-$HOME/.claude/settings.json}"
+  [ -r "$settings" ] || return 1
+  grep -qF "$AGENTS_INBOX_DIR/hooks/inbox-hook.sh" "$settings" 2>/dev/null
 }
 
 # Build the inbox rows for fzf.
