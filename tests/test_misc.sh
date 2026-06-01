@@ -28,17 +28,22 @@ assert_eq " 0s" "$(_ago 2000)" "_ago: future clamps to 0"
 
 rm -rf "$_shimdir"
 
-# --- transcript helpers (jq-dependent; assert the jq path when jq is present) ---
+# --- transcript helpers ---
 F="$TAI_ROOT/tests/fixtures"
+
+# _title_of uses tail|grep|sed (NOT jq), so it works regardless of jq presence.
+assert_eq "my generated title" "$(_title_of "$F/title.jsonl")" "_title_of: reads aiTitle"
+assert_eq "good title"         "$(_title_of "$F/malformed.jsonl")" "_title_of: survives malformed tail"
+
+# _last_user_prompt and _last_assistant_ends_with_question require jq; assert the
+# jq path when present, otherwise assert the documented no-jq fallback (empty / rc 1).
 if command -v jq >/dev/null 2>&1; then
-  assert_eq "my generated title" "$(_title_of "$F/title.jsonl")" "_title_of: reads aiTitle"
-  assert_eq "good title"         "$(_title_of "$F/malformed.jsonl")" "_title_of: survives malformed tail"
   assert_eq "hello there friend" "$(_last_user_prompt "$F/title.jsonl")" "_last_user_prompt: last user text"
   assert_eq "a real prompt here" "$(_last_user_prompt "$F/malformed.jsonl")" "_last_user_prompt: malformed tail ok"
 
   _last_assistant_ends_with_question "$F/question.jsonl"; assert_rc 0 "$?" "ends_with_question: trailing assistant '?' -> 0"
   _last_assistant_ends_with_question "$F/answered.jsonl"; assert_rc 1 "$?" "ends_with_question: user replied -> 1"
 else
-  # Document the untested fallback rather than silently skipping.
-  assert_eq "" "$(_title_of "$F/title.jsonl")" "_title_of: no-jq returns empty (fallback)"
+  assert_eq "" "$(_last_user_prompt "$F/title.jsonl")" "_last_user_prompt: no-jq returns empty (fallback)"
+  _last_assistant_ends_with_question "$F/question.jsonl"; assert_rc 1 "$?" "ends_with_question: no-jq returns 1 (fallback)"
 fi

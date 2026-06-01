@@ -18,3 +18,5 @@ disable=SC2086
 disable=SC2181
 # SC2154: variables referenced only inside an EXIT trap (assigned before the trap fires).
 disable=SC2154
+# SC2002: `cat "$snap" | fzf` — pre-existing readable pipe idiom in inbox-popup.sh.
+disable=SC2002
