@@ -54,7 +54,7 @@ now="$(date +%s)"
 status="$(_status_for "$hstatus" "$hupdated" "$tx_mtime" "$now")"
 case "$status" in
   done|background)
-    _last_assistant_ends_with_question "$cur_tx" && status="waiting" ;;
+    _last_assistant_asks_question "$cur_tx" && status="waiting" ;;
 esac
 
 IFS=$'\t' read -r _rank icon label _dim <<< "$(_status_presentation "$status")"

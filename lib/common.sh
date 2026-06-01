@@ -339,12 +339,12 @@ build_list() {
     tx_mtime="$(_mtime "$cur_tx")"; [ -n "$tx_mtime" ] || tx_mtime=0
     status="$(_status_for "$hstatus" "$hupdated" "$tx_mtime" "$now")"
     # Escalate "done"/"background" to "waiting" when the last assistant message
-    # ended with a question — Claude Code fires no Notification for plain-text
-    # questions. Skipped if a more recent user record means the question was
-    # already answered.
+    # asks a question (any question sentence in its last paragraph) — Claude Code
+    # fires no Notification for plain-text questions. Skipped if a more recent
+    # user record means the question was already answered.
     case "$status" in
       done|background)
-        _last_assistant_ends_with_question "$cur_tx" && status="waiting" ;;
+        _last_assistant_asks_question "$cur_tx" && status="waiting" ;;
     esac
     # "ago" reflects time-in-current-state: prefer the hook epoch (the hook now
     # holds it steady across same-status events). Fall back to transcript mtime
