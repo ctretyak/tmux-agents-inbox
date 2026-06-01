@@ -8,14 +8,16 @@ opening the popup.
 
 ```
 prefix + I  → popup                                            status-right
-┌─────────────────────────────────────────────────────────┐    ⚡2 ⏳1 ✓3
-│ agents>                                                 │    (working/waiting/done)
+┌─────────────────────────────────────────────────────────┐    ⚡2 ⏳1 ✢1 ✓3
+│ agents>                                                 │    (working/waiting/background/done)
 │ ── Needs input (1) ──                                   │
 │  ✻ my-app       feature-x      power-up design     1m   │    prefix + N → next waiting
-│ ── Working (1) ──                                       │    ctrl-s    → regroup
-│  ✽ my-app                      collision system    5s   │    (state · session · flat)
-│ ── Completed (1) ──                                     │
-│  ✻ my-app                      title screen        9m   │
+│ ── Completed (1) ──                                     │    ctrl-s    → regroup
+│  ✻ my-app                      title screen        9m   │    (state · session · flat)
+│ ── Background (1) ──                                    │
+│  ✢ my-app                      data export         2m   │
+│ ── Working (1) ──                                       │
+│  ✽ my-app                      collision system    5s   │
 │                                                         │
 │ enter: jump   ctrl-s: regroup   esc: close              │
 └─────────────────────────────────────────────────────────┘
@@ -34,7 +36,7 @@ excluded — those are agent view's job; see [Background sessions](#background-s
 state file keyed by the pane id (`~/.cache/tmux-agents-inbox/pane-<id>`). State mapping:
 `SessionStart` → idle (but `source: compact` keeps it **working** since the session is still active),
 `UserPromptSubmit` / `PreToolUse` → working, `Notification` → waiting (`idle_prompt` reminders are
-ignored so a finished session stays Completed), `Stop` → done (stays working if a `background_tasks`
+ignored so a finished session stays Completed), `Stop` → done (or **background** if a `background_tasks`
 entry is still running), `SessionEnd` → removed. A live pane with no state file yet shows as **idle**.
 
 When a hook record goes stale (after `/compact`, or for sessions that predate the install), the
@@ -46,7 +48,7 @@ column.
 `--resume`), read from the **tail** of the transcript so the cost is constant regardless of session
 length. Falls back to the tmux window name when no title has been generated yet.
 
-Everything is computed **on demand** (no daemon): the popup rebuilds every 2 s while open
+Everything is computed **on demand** (no daemon): the popup rebuilds every 1 s while open
 (`@agents-inbox-refresh-interval`), the status line on tmux's `status-interval`. Jumping uses
 `switch-client` + `select-window` + `select-pane` on the pane id.
 
@@ -119,8 +121,9 @@ set -g @agents-inbox-auto-status 'on'
 
 In the popup: **Enter** jumps, **Ctrl-X** kills the agent in that pane, **?** toggles the preview pane, **Ctrl-S** switches grouping (state → session → flat), **Esc** closes. Type to fuzzy-filter. The list **auto-refreshes** every 1 s by default (`@agents-inbox-refresh-interval` to change). Group headers (the `── Needs input (N) ──` lines) are **non-selectable** — Enter on them is a no-op, and Up/Down skip past them.
 
-Rows are grouped under headers with counts — **Needs input / Working / Completed / Idle** —
-most-urgent first, newest-first within each group. Each row shows: a colored status icon, project,
+Rows are grouped under headers with counts — **Needs input / Completed / Background / Working / Idle** —
+most-urgent first, newest-first within each group. (**Background** is a finished turn with a still-running
+`background_tasks` entry — monitors, watches, long-running shells.) Each row shows: a colored status icon, project,
 subfolder (the worktree name or path within the repo, blank at the repo root), the session's
 `ai-title` description, and how long ago the session was last active.
 
