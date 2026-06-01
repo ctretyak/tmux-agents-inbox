@@ -130,17 +130,21 @@ _title_of() {
   tail -c "$_TITLE_TAIL" "$tp" 2>/dev/null | grep '"type":"ai-title"' | tail -1 | sed -n 's/.*"aiTitle":"\([^"]*\)".*/\1/p'
 }
 
-# Does the latest user/assistant exchange end with the assistant asking a
-# question? Used to escalate "done" rows to "waiting" — Claude Code doesn't
-# fire a Notification for plain-text questions at end-of-turn.
-# Looks at the LAST user-or-assistant record: if user, the question was
-# already responded to (no escalation); if assistant ending with '?', escalate.
-# Requires jq; without jq, returns 1 (no escalation, status stays done).
-_last_assistant_ends_with_question() {
-  local tp="$1" last
+# Does the agent's last message ASK a question — i.e. does its LAST paragraph
+# contain a question sentence? Used to escalate "done"/"background" rows to
+# "waiting"; Claude Code fires no Notification for plain-text questions at
+# end-of-turn. Looks at the LAST user-or-assistant record: a trailing user
+# record means the question was already answered (decoded text empty -> no
+# escalation). For an assistant record the rule is "any sentence in the last
+# paragraph ends with '?'" — a '?' followed by whitespace or end-of-paragraph.
+# Catches mid-paragraph questions ("Should I proceed? Let me know.") while
+# excluding non-sentence '?' such as '?.', '?=', and query strings (none are
+# followed by whitespace). Requires jq; without jq, returns 1 (status stays done).
+_last_assistant_asks_question() {
+  local tp="$1" decoded
   [ -n "$tp" ] && [ -f "$tp" ] || return 1
   command -v jq >/dev/null 2>&1 || return 1
-  last="$(tail -c "$_TITLE_TAIL" "$tp" 2>/dev/null \
+  decoded="$(tail -c "$_TITLE_TAIL" "$tp" 2>/dev/null \
     | jq -rR 'fromjson?
         | select(.type=="user" or .type=="assistant")
         | (if .type=="assistant"
@@ -148,14 +152,17 @@ _last_assistant_ends_with_question() {
              else "" end)
         | @base64' 2>/dev/null \
     | tail -1 \
-    | base64 -d 2>/dev/null \
-    | sed 's/[[:space:]]*$//')"
-  case "$last" in *\?) return 0 ;; *) return 1 ;; esac
+    | base64 -d 2>/dev/null)"
+  [ -n "$decoded" ] || return 1
+  printf '%s\n' "$decoded" \
+    | awk '/^[[:space:]]*$/ { if (cur != "") last = cur; cur = ""; next }
+           { cur = cur $0 "\n" }
+           END { p = (cur != "" ? cur : last); exit (p ~ /\?[[:space:]]/) ? 0 : 1 }'
 }
 
 # Last user prompt as a single line, truncated to ~60 chars + ellipsis.
 # Used by the preview header. Requires jq; without jq, prints nothing.
-# Mirrors _last_assistant_ends_with_question: tail-only read, base64
+# Mirrors _last_assistant_asks_question: tail-only read, base64
 # encoding to survive newlines and quotes inside content.
 _last_user_prompt() {
   local tp="$1" raw
