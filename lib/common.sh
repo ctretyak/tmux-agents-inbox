@@ -314,6 +314,13 @@ build_list() {
   fi
 
   liveset=" $(printf '%s' "$live" | tr '\n' ' ') "
+
+  # When this plugin's hook isn't detected in the user settings, prepend a
+  # NON-selectable (__hdr__) yellow warning. States below are transcript-
+  # approximated without hooks; this explains an empty or inaccurate popup.
+  _hooks_detected || printf '__hdr__\t%s⚠ hooks not detected in %s — status may be approximate — run: bash %s/install-hooks.sh%s\n' \
+    "$C_WAIT" "${CLAUDE_SETTINGS:-~/.claude/settings.json}" "$AGENTS_INBOX_DIR" "$C_RESET"
+
   printf '%s\n' "$meta" | while IFS='|' read -r pid sess win wname pidx cwd; do
     [ -n "$pid" ] || continue
     case "$liveset" in *" $pid "*) : ;; *) continue ;; esac
