@@ -177,6 +177,11 @@ the correct absolute path automatically, so the script is recommended.
   transcript is our ground truth and pure background shells don't write to it.
 - Reading the `ai-title` description tails the last ~256 KB of the session transcript on each
   refresh — constant time regardless of session length.
+- **Hook-detection notice is user-scope only.** When the popup can't find this plugin's hook path in
+  your user settings (`$CLAUDE_SETTINGS` or `~/.claude/settings.json`), it shows a yellow
+  `hooks not detected` banner at the top. It's a cheap grep for the plugin's resolved hook path, so it
+  won't see hooks wired into a *project* `.claude/settings.json`, and a partial install (path present
+  but not all events) reads as detected. Run `install-hooks.sh` (the documented path) and it clears.
 
 ## Uninstall
 
