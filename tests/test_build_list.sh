@@ -53,3 +53,11 @@ printf '%s' "$out" | grep -q 'Working (1)'        ; assert_rc 0 "$?" "build_list
 printf '%s' "$out" | grep -q 'proj'               ; assert_rc 0 "$?" "build_list: project column rendered"
 printf '%s' "$out" | grep -q 'my task'            ; assert_rc 0 "$?" "build_list: ai-title as description"
 rows="$(printf '%s\n' "$out" | grep -c '^%5')"    ; assert_eq 1 "$rows" "build_list: exactly one pane row"
+
+# Header label must flow from _status_presentation, not a hardcoded awk copy.
+# Green before and after the single-source refactor: it pins the contract so the
+# helper's label and the rendered group header can never drift apart again.
+# field 3 of _status_presentation = label; working has a plain (ANSI-free) icon.
+wlabel="$(_status_presentation working | cut -f3)"
+printf '%s' "$out" | grep -qF "$wlabel (1)"
+assert_rc 0 "$?" "build_list: state header label sourced from _status_presentation"
