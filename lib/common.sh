@@ -282,7 +282,7 @@ _status_presentation() {
 # View mode is read from $CACHE/.view-mode: state (default) | session | flat.
 build_list() {
   local mode now live meta liveset
-  local id sf hstatus hupdated cur_tx tx_mtime status updated rank icon desc vis gkey wkey
+  local id sf hstatus hupdated cur_tx tx_mtime status updated rank icon label desc vis gkey wkey
 
   mode="$(cat "$CACHE/.view-mode" 2>/dev/null)"
   case "$mode" in state|session|flat) : ;; *) mode="state" ;; esac
@@ -322,7 +322,7 @@ build_list() {
     elif [ "$tx_mtime" -gt 0 ] 2>/dev/null; then updated="$tx_mtime"
     else updated=0
     fi
-    IFS=$'\t' read -r rank icon _lbl dim <<< "$(_status_presentation "$status")"
+    IFS=$'\t' read -r rank icon label dim <<< "$(_status_presentation "$status")"
     desc="$(_title_of "$cur_tx")"
     [ -n "$desc" ] || desc="$wname"
     desc="${desc//$'\t'/ }"
@@ -337,14 +337,14 @@ build_list() {
       flat)    gkey=" ";     wkey="$rank$(printf '%010d' "$inv")" ;;
       *)       gkey="$rank";  wkey="$(printf '%010d' "$inv")" ;;
     esac
-    # raw fields: gkey  wkey  pane_id  dim  icon  project  subfolder  message  time
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-      "$gkey" "$wkey" "$pid" "$dim" "$icon" "$proj" "$sub" "$desc" "$agostr"
+    # raw fields: gkey  wkey  pane_id  dim  icon  project  subfolder  message  time  label
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$gkey" "$wkey" "$pid" "$dim" "$icon" "$proj" "$sub" "$desc" "$agostr" "$label"
   done | LC_ALL=C sort -t$'\t' -k1,1 -k2,2 \
        | awk -F'\t' -v mode="$mode" -v cw="$C_HDR" -v cr="$C_RESET" -v hr="──" -v dimc="$C_IDLE" '
       {
         gk[NR]=$1; pid[NR]=$3; dim[NR]=$4; icon[NR]=$5
-        proj[NR]=$6; sb[NR]=$7; msg[NR]=$8; tm[NR]=$9; cnt[$1]++
+        proj[NR]=$6; sb[NR]=$7; msg[NR]=$8; tm[NR]=$9; lblf[NR]=$10; cnt[$1]++
         if (length($6)>wp) wp=length($6)
         if (length($7)>ws) ws=length($7)
         if (length($8)>wm) wm=length($8)
@@ -355,14 +355,9 @@ build_list() {
         have=0
         for (i=1;i<=NR;i++) {
           if (mode!="flat" && (have==0 || gk[i]!=prev)) {
-            lbl=gk[i]
-            if (mode=="state") {
-              if      (gk[i]=="0") lbl="Needs input"
-              else if (gk[i]=="1") lbl="Completed"
-              else if (gk[i]=="2") lbl="Background"
-              else if (gk[i]=="3") lbl="Working"
-              else                 lbl="Idle"
-            }
+            # state mode groups by rank; the row carries the canonical label from
+            # _status_presentation. session mode groups by session name (gk).
+            lbl = (mode=="state" ? lblf[i] : gk[i])
             printf "__hdr__\t%s%s %s (%d) %s%s\n", cw, hr, lbl, cnt[gk[i]], hr, cr
             prev=gk[i]; have=1
           }
