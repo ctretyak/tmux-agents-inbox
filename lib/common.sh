@@ -300,17 +300,52 @@ _hooks_detected() {
   grep -qF "$AGENTS_INBOX_DIR/hooks/inbox-hook.sh" "$settings" 2>/dev/null
 }
 
+# --- column configuration -----------------------------------------------------
+# Single source of truth for valid column names (the catalog).
+_is_column() {
+  case "$1" in
+    icon|project|subfolder|description|age|session|window|window-index|pane|path) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Resolve the ordered, validated column list from @agents-inbox-columns.
+# Unknown tokens are dropped (surfaced separately by _columns_unknown); an
+# empty or all-unknown list falls back to the default so the popup is never blank.
+_columns_config() {
+  local def="icon project subfolder description age" raw out="" tok
+  raw="$(tmux show -gqv '@agents-inbox-columns' 2>/dev/null)"
+  [ -n "$raw" ] || raw="$def"
+  for tok in $raw; do
+    _is_column "$tok" && out="$out $tok"
+  done
+  out="${out# }"
+  [ -n "$out" ] || out="$def"
+  printf '%s' "$out"
+}
+
+# Echo any configured tokens that are NOT valid column names (for the warning header).
+_columns_unknown() {
+  local raw out="" tok
+  raw="$(tmux show -gqv '@agents-inbox-columns' 2>/dev/null)"
+  for tok in $raw; do
+    _is_column "$tok" || out="$out $tok"
+  done
+  printf '%s' "${out# }"
+}
+
 # Build the inbox rows for fzf.
 # Output line: "<pane_id>\t<visible columns>"  (field 1 = hidden jump key).
 # Group-header rows use the sentinel pane id "__hdr__" (jump is a no-op on them).
 # View mode is read from $CACHE/.view-mode: state (default) | session | flat.
 build_list() {
-  local mode now live meta liveset
+  local mode now live meta liveset cols tok v row unknown
   local id sf hstatus hupdated cur_tx tx_mtime status updated rank icon label desc vis gkey wkey
 
   mode="$(cat "$CACHE/.view-mode" 2>/dev/null)"
   case "$mode" in state|session|flat) : ;; *) mode="state" ;; esac
   now="$(date +%s)"
+  cols="$(_columns_config)"
 
   live="$(claude_panes)"
   meta="$(tmux list-panes -a -F '#{pane_id}|#{session_name}|#{window_index}|#{window_name}|#{pane_index}|#{pane_current_path}' 2>/dev/null)"
@@ -327,6 +362,8 @@ build_list() {
   # approximated without hooks; this explains an empty or inaccurate popup.
   _hooks_detected || printf '__hdr__\t%s⚠ hooks not detected in %s — status may be approximate — run: bash %s/install-hooks.sh%s\n' \
     "$C_WAIT" "${CLAUDE_SETTINGS:-~/.claude/settings.json}" "$AGENTS_INBOX_DIR" "$C_RESET"
+  unknown="$(_columns_unknown)"
+  [ -z "$unknown" ] || printf '__hdr__\t%s⚠ unknown column(s): %s%s\n' "$C_WAIT" "$unknown" "$C_RESET"
 
   printf '%s\n' "$meta" | while IFS='|' read -r pid sess win wname pidx cwd; do
     [ -n "$pid" ] || continue
@@ -368,21 +405,37 @@ build_list() {
       flat)    gkey=" ";     wkey="$rank$(printf '%010d' "$inv")" ;;
       *)       gkey="$rank";  wkey="$(printf '%010d' "$inv")" ;;
     esac
-    # raw fields: gkey  wkey  pane_id  dim  icon  project  subfolder  message  time  label
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-      "$gkey" "$wkey" "$pid" "$dim" "$icon" "$proj" "$sub" "$desc" "$agostr" "$label"
+    # raw fields: gkey  wkey  pane_id  dim  label  then one field per configured column
+    row="$gkey"$'\t'"$wkey"$'\t'"$pid"$'\t'"$dim"$'\t'"$label"
+    for tok in $cols; do
+      case "$tok" in
+        icon)         v="$icon" ;;
+        project)      v="$proj" ;;
+        subfolder)    v="$sub" ;;
+        description)  v="$desc" ;;
+        age)          v="$agostr" ;;
+        session)      v="$sess" ;;
+        window)       v="$wname" ;;
+        window-index) v="$win" ;;
+        pane)         v="$pid" ;;
+        path)         v="$cwd" ;;
+      esac
+      v="$(printf '%s' "$v" | tr '\t\r\n' '   ')"
+      row="$row"$'\t'"$v"
+    done
+    printf '%s\n' "$row"
   done | LC_ALL=C sort -t$'\t' -k1,1 -k2,2 \
-       | awk -F'\t' -v mode="$mode" -v cw="$C_HDR" -v cr="$C_RESET" -v hr="──" -v dimc="$C_IDLE" '
+       | awk -F'\t' -v mode="$mode" -v cw="$C_HDR" -v cr="$C_RESET" -v hr="──" -v dimc="$C_IDLE" -v cols="$cols" '
+      BEGIN { ncol = split(cols, cn, " ") }
       {
-        gk[NR]=$1; pid[NR]=$3; dim[NR]=$4; icon[NR]=$5
-        proj[NR]=$6; sb[NR]=$7; msg[NR]=$8; tm[NR]=$9; lblf[NR]=$10; cnt[$1]++
-        if (length($6)>wp) wp=length($6)
-        if (length($7)>ws) ws=length($7)
-        if (length($8)>wm) wm=length($8)
+        gk[NR]=$1; pid[NR]=$3; dim[NR]=$4; lblf[NR]=$5; cnt[$1]++
+        # column values live in $6..$(5+ncol); size every non-icon column to its widest
+        for (c=1; c<=ncol; c++) {
+          val[NR,c] = $(5+c)
+          if (cn[c]!="icon" && length($(5+c)) > w[c]) w[c] = length($(5+c))
+        }
       }
       END {
-        # size each column to its widest value -> aligned, never truncated
-        fmt = sprintf("%%-%ds  %%-%ds  %%-%ds  %%s", wp, ws, wm)
         have=0
         for (i=1;i<=NR;i++) {
           if (mode!="flat" && (have==0 || gk[i]!=prev)) {
@@ -392,9 +445,24 @@ build_list() {
             printf "__hdr__\t%s%s %s (%d) %s%s\n", cw, hr, lbl, cnt[gk[i]], hr, cr
             prev=gk[i]; have=1
           }
-          body=sprintf(fmt, proj[i], sb[i], msg[i], tm[i])
-          if (dim[i]=="1") body=dimc body cr
-          printf "%s\t%s  %s\n", pid[i], icon[i], body
+          # Render columns in order. icon is emitted RAW (its 1-glyph visible width
+          # needs no padding) and OUTSIDE any dim span (its embedded C_RESET would
+          # otherwise cancel the dim for the rest of the row). Each maximal run of
+          # non-icon columns is dim-wrapped as one span on idle rows.
+          out=""; indim=0
+          for (c=1; c<=ncol; c++) {
+            sep = (c==1 ? "" : "  ")
+            if (cn[c]=="icon") {
+              if (indim) { out=out cr; indim=0 }     # close dim before the icon
+              out = out sep val[i,c]
+            } else {
+              cell = (c==ncol ? val[i,c] : sprintf("%-*s", w[c], val[i,c]))
+              if (dim[i]=="1" && !indim) { out = out sep dimc cell; indim=1 }
+              else                       { out = out sep cell }
+            }
+          }
+          if (indim) out=out cr                       # close trailing dim span
+          printf "%s\t%s\n", pid[i], out
         }
       }'
 }

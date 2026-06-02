@@ -17,6 +17,7 @@ case "$*" in
   *'#{pane_pid} #{pane_id}'*)     cat "$TAI_FIX/panes_pidmap" ;;
   *'#{pane_id}|#{session_name}'*) cat "$TAI_FIX/panes_meta" ;;
   *'list-panes -a -F x'*)         printf 'x\n' ;;
+  *'show -gqv @agents-inbox-columns'*) printf '%s\n' "${TAI_COLUMNS:-}" ;;
   *) exit 0 ;;
 esac
 SH
@@ -61,3 +62,45 @@ rows="$(printf '%s\n' "$out" | grep -c '^%5')"    ; assert_eq 1 "$rows" "build_l
 wlabel="$(_status_presentation working | cut -f3)"
 printf '%s' "$out" | grep -qF "$wlabel (1)"
 assert_rc 0 "$?" "build_list: state header label sourced from _status_presentation"
+
+# --- configurable columns (Task 2) -------------------------------------------
+# TAI_COLUMNS must be EXPORTED so the tmux shim subprocess sees it.
+export TAI_COLUMNS
+
+# Reorder: 'age description project' -> age before title before project, no icon glyph.
+TAI_COLUMNS="age description project"
+oc="$(build_list | strip_ansi)"
+printf '%s\n' "$oc" | grep -qE '5s.*my task.*proj'
+assert_rc 0 "$?" "columns reorder: age<description<project order"
+printf '%s\n' "$oc" | grep '^%5' | grep -q '[✻✢✽]'
+assert_rc 1 "$?" "columns reorder: status icon omitted from row"
+
+# Omit: 'icon description' -> project column gone, description stays.
+TAI_COLUMNS="icon description"
+oc="$(build_list | strip_ansi)"
+printf '%s\n' "$oc" | grep '^%5' | grep -q 'proj'
+assert_rc 1 "$?" "columns omit: project column absent"
+printf '%s\n' "$oc" | grep -q 'my task'
+assert_rc 0 "$?" "columns omit: description still rendered"
+
+# New field: 'icon session description' -> shows the tmux session name.
+TAI_COLUMNS="icon session description"
+oc="$(build_list | strip_ansi)"
+printf '%s\n' "$oc" | grep -q 'sess1'
+assert_rc 0 "$?" "columns new-field: session name rendered"
+
+# Empty option -> identical to the default render.
+TAI_COLUMNS=""
+oc_empty="$(build_list | strip_ansi)"
+unset TAI_COLUMNS
+oc_def="$(build_list | strip_ansi)"
+assert_eq "$oc_def" "$oc_empty" "columns empty option -> default render"
+
+# Unknown token -> warning header, valid columns still render (Task 3).
+export TAI_COLUMNS="icon bogus project"
+oc="$(build_list | strip_ansi)"
+printf '%s\n' "$oc" | grep -q 'unknown column(s): bogus'
+assert_rc 0 "$?" "columns unknown: warning header lists bad token"
+printf '%s\n' "$oc" | grep '^%5' | grep -q 'proj'
+assert_rc 0 "$?" "columns unknown: valid columns still render"
+unset TAI_COLUMNS

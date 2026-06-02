@@ -114,18 +114,28 @@ set -g @agents-inbox-auto-status 'on'
 | `@agents-inbox-auto-status` | `off` | If `on`, append the summary to `status-right` (idempotent; preserves your existing value). |
 | `@agents-inbox-preview` | `off` | Show a preview pane in the popup with the agent's live tmux output + transcript-derived header. Toggling with `?` rewrites this option globally for the current tmux server, so the choice persists across popup opens until you change it again. |
 | `@agents-inbox-preview-position` | `right:55%` | Passed straight to fzf `--preview-window`. Accepts e.g. `right:50%`, `bottom:40%`, `left:60%`. |
+| `@agents-inbox-columns` | `icon project subfolder description age` | Ordered, space-separated list of popup columns. List order is column order; omit a name to hide that column; unknown names are ignored (a `⚠` header lists them). Catalog: `icon` (status symbol), `project`, `subfolder`, `description` (ai-title), `age` (relative), `session`, `window` (name), `window-index`, `pane` (`%id`), `path` (cwd — **unbounded width**, no truncation). |
 
 > **Heads-up for TPM users:** the default popup key `prefix + I` is the same key TPM binds to "install
 > plugins". This plugin will override it. Pick another key if you want to keep TPM's shortcut, e.g.
 > `set -g @agents-inbox-popup-key 'g'`.
 
+**Columns example.** Show the session name and drop the subfolder:
+
+```tmux
+set -g @agents-inbox-columns 'icon session description age'
+```
+
+Leave the option unset to keep the default layout. `path` is available but unbounded —
+a long working directory will widen the popup.
+
 In the popup: **Enter** jumps, **Ctrl-X** kills the agent in that pane, **?** toggles the preview pane, **Ctrl-S** switches grouping (state → session → flat), **Esc** closes. Type to fuzzy-filter. The list **auto-refreshes** every 1 s by default (`@agents-inbox-refresh-interval` to change). Group headers (the `── Needs input (N) ──` lines) are **non-selectable** — Enter on them is a no-op, and Up/Down skip past them.
 
 Rows are grouped under headers with counts — **Needs input / Completed / Background / Working / Idle** —
 most-urgent first, newest-first within each group. (**Background** is a finished turn with a still-running
-`background_tasks` entry — monitors, watches, long-running shells.) Each row shows: a colored status icon, project,
+`background_tasks` entry — monitors, watches, long-running shells.) By default each row shows: a colored status icon, project,
 subfolder (the worktree name or path within the repo, blank at the repo root), the session's
-`ai-title` description, and how long ago the session was last active.
+`ai-title` description, and how long ago the session was last active — configurable via `@agents-inbox-columns`.
 
 The popup is **sized to fit its content**, floored by `@agents-inbox-popup-min-width` /
 `-min-height` (defaults `50%` / `60%` of the client) and capped at `client − 2`. Set
