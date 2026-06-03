@@ -7,7 +7,7 @@ to that exact pane (even in another tmux session). One more key jumps to the nex
 opening the popup.
 
 ```
-prefix + I  → popup                                            status-right
+prefix + g  → popup                                            status-right
 ┌─────────────────────────────────────────────────────────┐    ⚡2 ⏳1 ✢1 ✓3
 │ agents>                                                 │    (working/waiting/background/done)
 │ ── Needs input (1) ──                                   │
@@ -104,7 +104,7 @@ set -g @agents-inbox-auto-status 'on'
 
 | Option | Default | Meaning |
 |---|---|---|
-| `@agents-inbox-popup-key` | `I` | Key (after prefix) to open the inbox popup. |
+| `@agents-inbox-popup-key` | `g` | Key (after prefix) to open the inbox popup. |
 | `@agents-inbox-next-key` | `N` | Key (after prefix) to jump to the next waiting agent. |
 | `@agents-inbox-popup-min-width` | `50%` | Floor for the auto-sized popup width. Accepts `<N>%` (percent of client) or `<N>` (cells). |
 | `@agents-inbox-popup-min-height` | `60%` | Floor for the auto-sized popup height. Same format. |
@@ -115,10 +115,6 @@ set -g @agents-inbox-auto-status 'on'
 | `@agents-inbox-preview` | `off` | Show a preview pane in the popup with the agent's live tmux output + transcript-derived header. Toggling with `?` rewrites this option globally for the current tmux server, so the choice persists across popup opens until you change it again. |
 | `@agents-inbox-preview-position` | `right:55%` | Passed straight to fzf `--preview-window`. Accepts e.g. `right:50%`, `bottom:40%`, `left:60%`. |
 | `@agents-inbox-columns` | `icon project subfolder description age` | Ordered, space-separated list of popup columns. List order is column order; omit a name to hide that column; unknown names are ignored (a `⚠` header lists them). Catalog: `icon` (status symbol), `project`, `subfolder`, `description` (ai-title), `age` (relative), `session`, `window` (name), `window-index`, `pane` (`%id`), `path` (cwd — **unbounded width**, no truncation). |
-
-> **Heads-up for TPM users:** the default popup key `prefix + I` is the same key TPM binds to "install
-> plugins". This plugin will override it. Pick another key if you want to keep TPM's shortcut, e.g.
-> `set -g @agents-inbox-popup-key 'g'`.
 
 **Columns example.** Show the session name and drop the subfolder:
 

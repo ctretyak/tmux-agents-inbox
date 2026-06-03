@@ -9,11 +9,11 @@ get_opt() {
   if [ -n "$v" ]; then printf '%s' "$v"; else printf '%s' "$2"; fi
 }
 
-popup_key="$(get_opt '@agents-inbox-popup-key' 'I')"
+popup_key="$(get_opt '@agents-inbox-popup-key' 'g')"
 next_key="$(get_opt '@agents-inbox-next-key' 'N')"
 auto_status="$(get_opt '@agents-inbox-auto-status' 'off')"
 
-# prefix + I  -> open the inbox popup (launcher sizes it to fit the content)
+# prefix + g  -> open the inbox popup (launcher sizes it to fit the content)
 tmux bind-key "$popup_key" run-shell "bash '$SCRIPTS/inbox-open.sh'"
 
 # prefix + N  -> jump to the next waiting agent
