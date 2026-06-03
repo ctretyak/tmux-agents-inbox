@@ -42,9 +42,13 @@ TAI_COLUMNS="icon project"
 assert_eq "" "$(_columns_unknown)" "_columns_unknown: empty when all valid"
 
 # KNOWN LIMITATION (pinned, not a bug to silently "fix"): the awk renderer sizes
-# columns with length(), which counts BYTES, not display columns. A 2-byte UTF-8
-# character therefore reports width 2 and a wide column (path/session/project with
-# non-ASCII) can misalign. Fixing it needs wcwidth, a dependency the project rejects.
-# If this assertion ever fails, alignment behavior changed — decide deliberately.
-bytelen="$(printf 'ä' | awk '{ print length($0) }')"
-assert_eq "2" "$bytelen" "known-limitation: awk length() is byte-based (UTF-8 ä = 2)"
+# columns with length(), which is NOT display-width aware. mawk/BSD awk count BYTES
+# (a 2-byte UTF-8 ä reports 2), while gawk in a UTF-8 locale counts CHARACTERS (ä
+# reports 1) — and neither equals terminal display columns for wide glyphs (CJK,
+# emoji). A non-ASCII column (path/session/project) can therefore misalign. Fixing
+# it needs wcwidth, a dependency the project rejects. If this assertion ever fails
+# (length() is neither the byte nor the char count), behavior changed — decide
+# deliberately.
+awklen="$(printf 'ä' | awk '{ print length($0) }')"
+case "$awklen" in 1|2) known=yes ;; *) known=no ;; esac
+assert_eq "yes" "$known" "known-limitation: awk length() is byte- or char-based, not display-width (ä → 1 or 2, got $awklen)"
