@@ -107,8 +107,11 @@ _ago() {
 
 _TITLE_TAIL=262144
 
-# Portable mtime (epoch): BSD/macOS first, then GNU/Linux.
-_mtime() { stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null; }
+# Portable mtime (epoch): GNU/Linux first, then BSD/macOS. GNU `stat -f %m` reads
+# `-f` as --file-system and dumps a multi-line FS-info block to stdout (polluting
+# the result) while exiting non-zero, so the GNU `-c %Y` form MUST be tried first;
+# BSD stat rejects `-c` cleanly (stderr only) and falls through to `-f %m`.
+_mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null; }
 
 # The session's CURRENT transcript = newest *.jsonl in the cwd's project dir.
 # Survives /compact (which switches the session to a new transcript file) and works
