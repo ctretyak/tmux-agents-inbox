@@ -35,9 +35,12 @@ excluded — those are agent view's job; see [Background sessions](#background-s
 **Status** is recorded by a small Claude Code hook that runs inside each pane and writes a one-line
 state file keyed by the pane id (`~/.cache/tmux-agents-inbox/pane-<id>`). State mapping:
 `SessionStart` → idle (but `source: compact` keeps it **working** since the session is still active),
-`UserPromptSubmit` / `PreToolUse` → working, `Notification` → waiting (`idle_prompt` reminders are
-ignored so a finished session stays Completed), `Stop` → done (or **background** if a `background_tasks`
-entry is still running), `SessionEnd` → removed. A live pane with no state file yet shows as **idle**.
+`UserPromptSubmit` / `PreToolUse` / `PostToolUse` / `SubagentStop` → working, `Notification` → waiting
+(`idle_prompt` reminders are ignored so a finished session stays Completed), `Stop` → done (or
+**background** if a `background_tasks` entry is still running), `SessionEnd` → removed. `PostToolUse`
+matters for the **needs-input → working** transition: answering an `AskUserQuestion` returns the tool
+(firing `PostToolUse`) before Claude resumes thinking, so the row clears immediately instead of sitting
+on **Needs input** through a long think. A live pane with no state file yet shows as **idle**.
 
 When a hook record goes stale (after `/compact`, or for sessions that predate the install), the
 popup reconciles with **live transcript activity**: if the session's transcript was written in the
@@ -162,6 +165,8 @@ the correct absolute path automatically, so the script is recommended.
     "SessionStart":     [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh SessionStart" } ] } ],
     "UserPromptSubmit": [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh UserPromptSubmit" } ] } ],
     "PreToolUse":       [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh PreToolUse" } ] } ],
+    "PostToolUse":      [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh PostToolUse" } ] } ],
+    "SubagentStop":     [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh SubagentStop" } ] } ],
     "PreCompact":       [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh PreCompact" } ] } ],
     "Notification":     [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh Notification" } ] } ],
     "Stop":             [ { "hooks": [ { "type": "command", "command": "bash ~/.tmux/plugins/tmux-agents-inbox/hooks/inbox-hook.sh Stop" } ] } ],
