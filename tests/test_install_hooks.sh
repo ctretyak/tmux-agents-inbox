@@ -17,7 +17,7 @@ has_event() {
     "$CLAUDE_SETTINGS" 2>/dev/null | grep -q "inbox-hook.sh $1\$"
 }
 
-for ev in SessionStart UserPromptSubmit PreToolUse PostToolUse SubagentStop \
+for ev in SessionStart UserPromptSubmit PreToolUse PostToolUse \
           PreCompact Notification Stop SessionEnd; do
   has_event "$ev"; assert_rc 0 "$?" "install-hooks registers $ev"
 done

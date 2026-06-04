@@ -21,10 +21,6 @@ assert_eq "/t/s1.jsonl" "$(field 4)" "hook: records transcript_path"
 run_hook PostToolUse '{"session_id":"s1","transcript_path":"/t/s1.jsonl"}'
 assert_eq working "$(field 1)" "hook: PostToolUse -> working"
 
-# SubagentStop -> working (parent agent is still running)
-run_hook SubagentStop '{"session_id":"s1","transcript_path":"/t/s1.jsonl"}'
-assert_eq working "$(field 1)" "hook: SubagentStop -> working"
-
 # Notification (real) -> waiting
 run_hook Notification '{"session_id":"s1","transcript_path":"/t/s1.jsonl","notification_type":"permission"}'
 assert_eq waiting "$(field 1)" "hook: Notification -> waiting"

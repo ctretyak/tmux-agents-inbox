@@ -33,7 +33,6 @@ jq --arg hook "$HOOK" '
   | ensure("UserPromptSubmit")
   | ensure("PreToolUse")
   | ensure("PostToolUse")
-  | ensure("SubagentStop")
   | ensure("PreCompact")
   | ensure("Notification")
   | ensure("Stop")
