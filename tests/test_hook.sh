@@ -16,6 +16,15 @@ run_hook UserPromptSubmit '{"session_id":"s1","transcript_path":"/t/s1.jsonl"}'
 assert_eq working "$(field 1)" "hook: UserPromptSubmit -> working"
 assert_eq "/t/s1.jsonl" "$(field 4)" "hook: records transcript_path"
 
+# PreToolUse (ordinary tool) -> working
+run_hook PreToolUse '{"session_id":"s1","transcript_path":"/t/s1.jsonl","tool_name":"Bash"}'
+assert_eq working "$(field 1)" "hook: PreToolUse ordinary tool -> working"
+
+# PreToolUse AskUserQuestion -> waiting (the tool blocks on the user; no other
+# hook event fires while the popup is open, so this is the only signal)
+run_hook PreToolUse '{"session_id":"s1","transcript_path":"/t/s1.jsonl","tool_name":"AskUserQuestion"}'
+assert_eq waiting "$(field 1)" "hook: PreToolUse AskUserQuestion -> waiting"
+
 # PostToolUse -> working (clears a prior "waiting" the moment a tool — e.g.
 # AskUserQuestion — returns, before Claude resumes thinking)
 run_hook PostToolUse '{"session_id":"s1","transcript_path":"/t/s1.jsonl"}'

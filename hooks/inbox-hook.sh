@@ -107,7 +107,14 @@ case "$event" in
     command -v jq >/dev/null 2>&1 && src="$(printf '%s' "$payload" | jq -r '.source // empty' 2>/dev/null)"
     case "$src" in compact) status="working" ;; *) status="idle" ;; esac
     ev="SessionStart:${src:-startup}" ;;
-  UserPromptSubmit|PreToolUse|PostToolUse|PreCompact)
+  PreToolUse)
+    # AskUserQuestion blocks on the user (multiple-choice popup) but emits no
+    # Notification — its PreToolUse is the only signal, so surface it as a real
+    # request. PostToolUse fires once answered and clears this back to working.
+    tname=""
+    command -v jq >/dev/null 2>&1 && tname="$(printf '%s' "$payload" | jq -r '.tool_name // empty' 2>/dev/null)"
+    case "$tname" in AskUserQuestion) status="waiting" ;; *) status="working" ;; esac ;;
+  UserPromptSubmit|PostToolUse|PreCompact)
     status="working" ;;
   SubagentStop)
     status="working" ;;          # parent agent is still running
